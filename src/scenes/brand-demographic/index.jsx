@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Grid, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { Box, Grid, Button, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MedicationOutlinedIcon from "@mui/icons-material/MedicationOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import { tokens } from "../../theme";
@@ -9,11 +11,13 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe, formatNumber } from "../../utils/dataGenerator";
 
 function BrandDemographic() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const navigate = useNavigate();
   
   const data = getData();
   
@@ -59,13 +63,15 @@ function BrandDemographic() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
+        totalMarketValue: "N/A",
         totalRevenue: "N/A",
         topBrand: "N/A",
         topAgeGroup: "N/A",
-        avgRevenue: "N/A",
       };
     }
 
+    // Total Market Value in US$ Million (5,000-7,000M range)
+    const totalMarketValue = filteredData.reduce((sum, d) => sum + (d.marketValueUsd || 0), 0);
     const totalRevenue = filteredData.reduce((sum, d) => sum + (d.revenue || d.marketValueUsd || 0), 0);
     
     const brandGroups = filteredData.reduce((acc, d) => {
@@ -79,25 +85,22 @@ function BrandDemographic() {
       return acc;
     }, {});
     const topAgeGroup = Object.entries(ageGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    
-    const brandRevenues = Object.values(brandGroups);
-    const avgRevenue = brandRevenues.length > 0 ? brandRevenues.reduce((a, b) => a + b, 0) / brandRevenues.length : 0;
 
     return {
-      totalRevenue: formatNumber(totalRevenue),
+      totalMarketValue: `${(totalMarketValue / 1000).toFixed(1)}M`, // In millions
+      totalRevenue: `${(totalRevenue / 1000).toFixed(1)}M`,
       topBrand,
       topAgeGroup,
-      avgRevenue: formatNumber(avgRevenue),
     };
   }, [filteredData]);
 
   const chartData1 = useMemo(() => {
     const grouped = filteredData.reduce((acc, d) => {
-      acc[d.ageGroup] = (acc[d.ageGroup] || 0) + (d.revenue || d.marketValueUsd || 0);
+      acc[d.brand] = (acc[d.brand] || 0) + (d.revenue || d.marketValueUsd || 0);
       return acc;
     }, {});
-    return Object.entries(grouped).map(([ageGroup, revenue]) => ({
-      ageGroup,
+    return Object.entries(grouped).map(([brand, revenue]) => ({
+      brand,
       revenue,
     }));
   }, [filteredData]);
@@ -154,7 +157,25 @@ function BrandDemographic() {
 
   return (
     <Box m="20px">
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb="20px">
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/")}
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: colors.grey[100],
+            "&:hover": {
+              backgroundColor: colors.blueAccent[800],
+            },
+          }}
+        >
+          Back to Home
+        </Button>
+      </Box>
+
       <Header title="Brand-Demographic" subtitle="Brand performance by demographics" />
+
+      <DemoNotice />
 
       <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", mb: "20px" }}>
         <Grid container spacing={2}>
@@ -188,22 +209,43 @@ function BrandDemographic() {
       <Grid container spacing={2} sx={{ mb: "20px" }}>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.totalRevenue} subtitle="Total Revenue" icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress="0.75" onCircleClick={() => setOpenModal('revenue')} />
+            <StatBox 
+              title={kpis.totalMarketValue} 
+              subtitle="Total Market Value (US$ Million)" 
+              icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.topBrand} subtitle="Top Performing Brand" icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox 
+              title={kpis.totalRevenue} 
+              subtitle="Total Revenue" 
+              icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress="0.75" 
+              onCircleClick={() => setOpenModal('revenue')} 
+            />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.topAgeGroup} subtitle="Top Age Group" icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox 
+              title={kpis.topBrand} 
+              subtitle="Top Performing Brand" 
+              icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.avgRevenue} subtitle="Avg Revenue per Brand" icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox 
+              title={kpis.topAgeGroup} 
+              subtitle="Top Age Group" 
+              icon={<MedicationOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
       </Grid>
@@ -211,9 +253,16 @@ function BrandDemographic() {
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Revenue by Age Group</Typography>
+            <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Revenue by Brand/Vaccine</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="revenue" nameKey="ageGroup" color={colors.blueAccent[500]} />
+              <BarChart 
+                data={chartData1} 
+                dataKey="revenue" 
+                nameKey="brand" 
+                color={colors.blueAccent[500]} 
+                xAxisLabel="Brand/Vaccine Name" 
+                yAxisLabel="Revenue (US$ Million)" 
+              />
             </Box>
           </Box>
         </Grid>
@@ -221,7 +270,7 @@ function BrandDemographic() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Revenue Distribution by Gender</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <PieChart data={chartData2} dataKey="revenue" nameKey="gender" />
+              <PieChart data={chartData2} dataKey="revenue" nameKey="gender" title="Revenue by Gender (% Share)" />
             </Box>
           </Box>
         </Grid>
@@ -229,7 +278,7 @@ function BrandDemographic() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Top 10 Brands by Age Group</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData3} dataKey="revenue" nameKey="brand" color={colors.blueAccent[500]} />
+              <BarChart data={chartData3} dataKey="revenue" nameKey="brand" color={colors.blueAccent[500]} xAxisLabel="Brand Name" yAxisLabel="Revenue (USD)" />
             </Box>
           </Box>
         </Grid>
@@ -252,15 +301,17 @@ function BrandDemographic() {
           display: "flex", 
           justifyContent: "space-between", 
           alignItems: "center",
-          color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900],
+          color: theme.palette.mode === "dark" ? "#ffffff" : "#000000",
           pb: 1
         }}>
-          <Typography variant="h4" fontWeight="bold">
+          <Typography variant="h4" fontWeight="bold" sx={{ 
+            color: theme.palette.mode === "dark" ? "#ffffff" : "#000000" 
+          }}>
             Total Revenue by Brand
           </Typography>
           <IconButton 
             onClick={() => setOpenModal(null)}
-            sx={{ color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900] }}
+            sx={{ color: theme.palette.mode === "dark" ? "#ffffff" : "#000000" }}
           >
             <CloseIcon />
           </IconButton>
@@ -280,45 +331,6 @@ function BrandDemographic() {
                 colors.redAccent[300],
               ]}
             />
-          </Box>
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="h6" color={theme.palette.mode === "dark" ? colors.grey[300] : colors.grey[700]} sx={{ mb: 1 }}>
-              Brand Distribution:
-            </Typography>
-            <Box display="flex" flexWrap="wrap" gap={2}>
-              {revenuePieData.map((item, index) => (
-                <Box
-                  key={item.brand}
-                  sx={{
-                    backgroundColor: theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[200],
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "50%",
-                      backgroundColor: [
-                        colors.blueAccent[500],
-                        colors.greenAccent[500],
-                        colors.redAccent[500],
-                        colors.blueAccent[300],
-                        colors.greenAccent[300],
-                        colors.redAccent[300],
-                      ][index % 6],
-                    }}
-                  />
-                  <Typography variant="body2" color={theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900]}>
-                    <strong>{item.brand}:</strong> {item.percent}%
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
           </Box>
         </DialogContent>
       </Dialog>

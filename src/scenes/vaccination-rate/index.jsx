@@ -10,6 +10,7 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe } from "../../utils/dataGenerator";
 
 function VaccinationRate() {
@@ -50,15 +51,19 @@ function VaccinationRate() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
+        marketSize: "N/A",
+        patientsVaccinated: "N/A",
         avgVaxRate: "N/A",
-        avgCovRate: "N/A",
         topRegion: "N/A",
-        numCountries: 0,
       };
     }
 
+    // Market Size in US$ Million
+    const marketSize = filteredData.reduce((sum, d) => sum + (d.marketValueUsd || 0), 0);
+    
+    // Number of Patients Vaccinated (in thousands)
+    const totalPatients = filteredData.reduce((sum, d) => sum + (d.prevalence * d.vaccinationRate / 100), 0);
     const avgVaxRate = filteredData.reduce((sum, d) => sum + d.vaccinationRate, 0) / filteredData.length;
-    const avgCovRate = filteredData.reduce((sum, d) => sum + d.coverageRate, 0) / filteredData.length;
     const regionGroups = filteredData.reduce((acc, d) => {
       if (!acc[d.region]) acc[d.region] = [];
       acc[d.region].push(d.vaccinationRate);
@@ -67,13 +72,12 @@ function VaccinationRate() {
     const topRegion = Object.entries(regionGroups)
       .map(([region, rates]) => [region, rates.reduce((a, b) => a + b, 0) / rates.length])
       .sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    const numCountries = new Set(filteredData.map(d => d.country)).size;
 
     return {
+      marketSize: `${(marketSize / 1000).toFixed(1)}M`, // In millions
+      patientsVaccinated: `${(totalPatients / 1000).toFixed(1)}K`,
       avgVaxRate: `${avgVaxRate.toFixed(1)}%`,
-      avgCovRate: `${avgCovRate.toFixed(1)}%`,
       topRegion,
-      numCountries,
     };
   }, [filteredData]);
 
@@ -135,6 +139,8 @@ function VaccinationRate() {
 
       <Header title="Vaccination Rate Analysis" subtitle="Coverage and vaccination rate tracking" />
 
+      <DemoNotice />
+
       {/* Filters */}
       <Box
         sx={{
@@ -193,8 +199,8 @@ function VaccinationRate() {
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
             <StatBox
-              title={kpis.avgVaxRate}
-              subtitle="Avg Vaccination Rate"
+              title={kpis.patientsVaccinated}
+              subtitle="Patients Vaccinated (000s)"
               icon={<HealingOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
               progress={null}
             />
@@ -203,8 +209,8 @@ function VaccinationRate() {
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
             <StatBox
-              title={kpis.avgCovRate}
-              subtitle="Coverage Rate"
+              title={kpis.avgVaxRate}
+              subtitle="Avg Vaccination Rate (%)"
               icon={<HealingOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
               progress={null}
             />
@@ -238,7 +244,7 @@ function VaccinationRate() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Vaccination Rate by Region</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="vaccinationRate" nameKey="region" color={colors.blueAccent[500]} />
+              <BarChart data={chartData1} dataKey="vaccinationRate" nameKey="region" color={colors.blueAccent[500]} xAxisLabel="Region" yAxisLabel="Vaccination Rate (%)" />
             </Box>
           </Box>
         </Grid>
@@ -246,7 +252,7 @@ function VaccinationRate() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Vaccination Rate by Disease</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <PieChart data={chartData2} dataKey="vaccinationRate" nameKey="disease" />
+              <PieChart data={chartData2} dataKey="vaccinationRate" nameKey="disease" title="Vaccination Rate by Disease (% Avg)" />
             </Box>
           </Box>
         </Grid>
@@ -254,7 +260,7 @@ function VaccinationRate() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Vaccination Rate Trend</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <LineChart data={chartData3} dataKeys={["vaccinationRate"]} nameKey="year" colors={[colors.blueAccent[500]]} />
+              <LineChart data={chartData3} dataKeys={["vaccinationRate"]} nameKey="year" colors={[colors.blueAccent[500]]} xAxisLabel="Year" yAxisLabel="Vaccination Rate (%)" />
             </Box>
           </Box>
         </Grid>

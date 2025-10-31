@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, useTheme } from "@mui/material";
 import { Link } from "react-router-dom";
 import { tokens } from "../../theme";
+import DemoNotice from "../../components/DemoNotice";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import HealingOutlinedIcon from "@mui/icons-material/HealingOutlined";
 import AttachMoneyOutlinedIcon from "@mui/icons-material/AttachMoneyOutlined";
@@ -90,18 +91,7 @@ function Home() {
         </Typography>
       </Box>
 
-      <Box
-        sx={{
-          backgroundColor: colors.primary[400],
-          padding: "20px",
-          borderRadius: "8px",
-          mb: "20px",
-        }}
-      >
-        <Typography variant="h6" color={colors.redAccent[500]} textAlign="center">
-          ⚠ Demo Dataset • For Illustration Purposes Only • No Real-World Data Association
-        </Typography>
-      </Box>
+      <DemoNotice />
 
       <Typography variant="h3" color={colors.grey[100]} sx={{ mb: "30px", mt: "30px" }}>
         Select Analysis Module
@@ -109,14 +99,18 @@ function Home() {
 
       <Box
         display="grid"
-        gridTemplateColumns="repeat(auto-fit, minmax(250px, 1fr))"
+        gridTemplateColumns="repeat(auto-fill, minmax(280px, 1fr))"
         gap="20px"
+        sx={{
+          maxWidth: "1400px",
+          margin: "0 auto"
+        }}
       >
         {modules.map((module) => (
           <Link
             key={module.path}
             to={module.path}
-            style={{ textDecoration: "none" }}
+            style={{ textDecoration: "none", height: "100%" }}
           >
             <Box
               sx={{
@@ -124,6 +118,11 @@ function Home() {
                 padding: "30px",
                 borderRadius: "12px",
                 cursor: "pointer",
+                height: "240px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
                 transition: "transform 0.2s, box-shadow 0.2s",
                 "&:hover": {
                   transform: "translateY(-5px)",

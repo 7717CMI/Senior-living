@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Grid, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { Box, Grid, Button, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import { tokens } from "../../theme";
@@ -9,11 +11,13 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe, formatNumber } from "../../utils/dataGenerator";
 
 function Procurement() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const navigate = useNavigate();
   
   const data = getData();
   
@@ -78,7 +82,7 @@ function Procurement() {
     const topProcurement = Object.entries(procurementGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
 
     return {
-      totalQty: formatNumber(totalQty),
+      totalQty: `${Math.round(totalQty / 1000)}M`, // Whole numbers in millions
       publicPct: `${publicPct}%`,
       privatePct: `${privatePct}%`,
       topProcurement,
@@ -150,7 +154,25 @@ function Procurement() {
 
   return (
     <Box m="20px">
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb="20px">
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/")}
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: colors.grey[100],
+            "&:hover": {
+              backgroundColor: colors.blueAccent[800],
+            },
+          }}
+        >
+          Back to Home
+        </Button>
+      </Box>
+
       <Header title="Procurement Analysis" subtitle="Public and private procurement tracking" />
+
+      <DemoNotice />
 
       <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", mb: "20px" }}>
         <Grid container spacing={2}>
@@ -206,7 +228,7 @@ function Procurement() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Quantity by Procurement Type</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="qty" nameKey="procurement" color={colors.blueAccent[500]} />
+              <BarChart data={chartData1} dataKey="qty" nameKey="procurement" color={colors.blueAccent[500]} xAxisLabel="Procurement Type" yAxisLabel="Quantity (Units)" />
             </Box>
           </Box>
         </Grid>
@@ -214,7 +236,7 @@ function Procurement() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Public vs Private Procurement</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <PieChart data={chartData2} dataKey="qty" nameKey="type" />
+              <PieChart data={chartData2} dataKey="qty" nameKey="type" title="Public vs Private (% Share)" />
             </Box>
           </Box>
         </Grid>
@@ -222,7 +244,7 @@ function Procurement() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Procurement Trend</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <LineChart data={chartData3} dataKeys={["Public", "Private"]} nameKey="year" colors={[colors.blueAccent[500], colors.greenAccent[500]]} />
+              <LineChart data={chartData3} dataKeys={["Public", "Private"]} nameKey="year" colors={[colors.blueAccent[500], colors.greenAccent[500]]} xAxisLabel="Year" yAxisLabel="Quantity (Units)" />
             </Box>
           </Box>
         </Grid>
@@ -273,45 +295,6 @@ function Procurement() {
                 colors.redAccent[300],
               ]}
             />
-          </Box>
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="h6" color={theme.palette.mode === "dark" ? colors.grey[300] : colors.grey[700]} sx={{ mb: 1 }}>
-              Brand Distribution:
-            </Typography>
-            <Box display="flex" flexWrap="wrap" gap={2}>
-              {quantityPieData.map((item, index) => (
-                <Box
-                  key={item.brand}
-                  sx={{
-                    backgroundColor: theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[200],
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "50%",
-                      backgroundColor: [
-                        colors.blueAccent[500],
-                        colors.greenAccent[500],
-                        colors.redAccent[500],
-                        colors.blueAccent[300],
-                        colors.greenAccent[300],
-                        colors.redAccent[300],
-                      ][index % 6],
-                    }}
-                  />
-                  <Typography variant="body2" color={theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900]}>
-                    <strong>{item.brand}:</strong> {item.percent}%
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
           </Box>
         </DialogContent>
       </Dialog>

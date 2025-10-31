@@ -73,18 +73,19 @@ const generateComprehensiveData = () => {
           for (const brand of brands) {
             for (const ageGroup of ageGroups) {
               for (const gender of ["Male", "Female"]) {
-                const prevalence = Math.floor((10000 + seededRandom() * 490000) * (1 + (year - 2021) * 0.05));
-                const incidence = Math.floor((20000 + seededRandom() * 780000) * (1 + (year - 2021) * 0.03));
+                // Further scaled down values (divided by 10) to get 220M instead of 2200M
+                const prevalence = Math.floor((1 + seededRandom() * 49) * (1 + (year - 2021) * 0.05));
+                const incidence = Math.floor((2 + seededRandom() * 78) * (1 + (year - 2021) * 0.03));
                 const vaccinationRate = 5 + seededRandom() * 90;
-                const price = 2 + seededRandom() * 148;
+                const price = 2 + seededRandom() * 148; // Price range 2-150 USD
                 const priceElasticity = 5 + seededRandom() * 45;
-                const volumeUnits = Math.floor(1000 + seededRandom() * 1999000);
-                const revenue = price * volumeUnits;
-                const marketValueUsd = revenue * (0.8 + seededRandom() * 0.4);
+                const volumeUnits = Math.floor(1 + seededRandom() * 199); // Volume reduced
+                const revenue = price * volumeUnits; // Revenue reduced
+                const marketValueUsd = revenue * (0.8 + seededRandom() * 0.4); // Market value reduced
                 const marketSharePct = 1 + seededRandom() * 24;
-                const cagr = -2 + seededRandom() * 17;
-                const yoyGrowth = -5 + seededRandom() * 25;
-                const qty = Math.floor(100 + seededRandom() * 99900);
+                const cagr = -2 + seededRandom() * 17; // CAGR in percentage
+                const yoyGrowth = -5 + seededRandom() * 25; // YoY in percentage
+                const qty = Math.floor(1 + seededRandom() * 99); // Quantity reduced
                 
                 const roa = roaTypes[Math.floor(seededRandom() * roaTypes.length)];
                 const fdf = fdfTypes[Math.floor(seededRandom() * fdfTypes.length)];
@@ -173,13 +174,11 @@ export const filterDataframe = (data, filters) => {
 };
 
 export const formatNumber = (num) => {
-  if (num >= 1_000_000_000) {
-    return `${(num / 1_000_000_000).toFixed(2)}B`;
-  } else if (num >= 1_000_000) {
-    return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 1_000_000) {
+    return `${(num / 1_000_000).toFixed(1)}M`;
   } else if (num >= 1_000) {
-    return `${(num / 1_000).toFixed(2)}K`;
+    return `${(num / 1_000).toFixed(1)}K`;
   }
-  return num.toFixed(0);
+  return Math.round(num).toString();
 };
 

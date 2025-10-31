@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Grid, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { Box, Grid, Button, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PieChartOutlinedIcon from "@mui/icons-material/PieChartOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import { tokens } from "../../theme";
@@ -9,11 +11,13 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe, formatNumber } from "../../utils/dataGenerator";
 
 function MSAComparison() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const navigate = useNavigate();
   
   const data = getData();
   
@@ -56,23 +60,24 @@ function MSAComparison() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
+        marketSize: "N/A",
         totalValue: "N/A",
         totalVolume: "N/A",
         avgShare: "N/A",
-        avgYoY: "N/A",
       };
     }
 
+    // Market Size in US$ Million
+    const marketSize = filteredData.reduce((sum, d) => sum + (d.marketValueUsd || 0), 0);
     const totalValue = filteredData.reduce((sum, d) => sum + (d.value || d.marketValueUsd || 0), 0);
     const totalVolume = filteredData.reduce((sum, d) => sum + (d.volumeUnits || 0), 0);
     const avgShare = filteredData.reduce((sum, d) => sum + (d.share || d.marketSharePct || 0), 0) / filteredData.length;
-    const avgYoY = filteredData.reduce((sum, d) => sum + (d.yoy || d.yoyGrowth || 0), 0) / filteredData.length;
 
     return {
+      marketSize: `${(marketSize / 1000).toFixed(1)}M`, // In millions
       totalValue: formatNumber(totalValue),
       totalVolume: formatNumber(totalVolume),
       avgShare: `${avgShare.toFixed(1)}%`,
-      avgYoY: `${avgYoY.toFixed(1)}%`,
     };
   }, [filteredData]);
 
@@ -152,7 +157,25 @@ function MSAComparison() {
 
   return (
     <Box m="20px">
-      <Header title="MSA Comparison" subtitle="Market share comparative analysis" />
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb="20px">
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/")}
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: colors.grey[100],
+            "&:hover": {
+              backgroundColor: colors.blueAccent[800],
+            },
+          }}
+        >
+          Back to Home
+        </Button>
+      </Box>
+
+      <Header title="Market Share Analysis" subtitle="Market Share Analysis by Region, Country, Segment, and Year (all %)" />
+
+      <DemoNotice />
 
       <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", mb: "20px" }}>
         <Grid container spacing={2}>
@@ -208,7 +231,7 @@ function MSAComparison() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Top Markets by Value</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="value" nameKey="market" color={colors.blueAccent[500]} />
+              <BarChart data={chartData1} dataKey="value" nameKey="market" color={colors.blueAccent[500]} xAxisLabel="Market/Disease" yAxisLabel="Market Value (USD)" />
             </Box>
           </Box>
         </Grid>
@@ -216,7 +239,7 @@ function MSAComparison() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Market Share by Brand</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <PieChart data={chartData2} dataKey="share" nameKey="brand" />
+              <PieChart data={chartData2} dataKey="share" nameKey="brand" title="Market Share by Brand (% of Total)" />
             </Box>
           </Box>
         </Grid>
@@ -224,7 +247,7 @@ function MSAComparison() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>YoY Growth Trend</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <LineChart data={chartData3} dataKeys={["yoy"]} nameKey="year" colors={[colors.blueAccent[500]]} />
+              <LineChart data={chartData3} dataKeys={["yoy"]} nameKey="year" colors={[colors.blueAccent[500]]} xAxisLabel="Year" yAxisLabel="YoY Growth (%)" />
             </Box>
           </Box>
         </Grid>
@@ -275,45 +298,6 @@ function MSAComparison() {
                 colors.redAccent[300],
               ]}
             />
-          </Box>
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="h6" color={theme.palette.mode === "dark" ? colors.grey[300] : colors.grey[700]} sx={{ mb: 1 }}>
-              Brand Distribution:
-            </Typography>
-            <Box display="flex" flexWrap="wrap" gap={2}>
-              {(openModal === 'value' ? valuePieData : volumePieData).map((item, index) => (
-                <Box
-                  key={item.brand}
-                  sx={{
-                    backgroundColor: theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[200],
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "50%",
-                      backgroundColor: [
-                        colors.blueAccent[500],
-                        colors.greenAccent[500],
-                        colors.redAccent[500],
-                        colors.blueAccent[300],
-                        colors.greenAccent[300],
-                        colors.redAccent[300],
-                      ][index % 6],
-                    }}
-                  />
-                  <Typography variant="body2" color={theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900]}>
-                    <strong>{item.brand}:</strong> {item.percent}%
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
           </Box>
         </DialogContent>
       </Dialog>

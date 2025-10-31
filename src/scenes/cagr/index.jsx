@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Grid, Typography, useTheme } from "@mui/material";
+import { Box, Grid, Button, Typography, useTheme } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import { tokens } from "../../theme";
 import Header from "../../components/Header";
@@ -8,11 +10,13 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe } from "../../utils/dataGenerator";
 
 function CAGR() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const navigate = useNavigate();
   
   const data = getData();
   
@@ -53,13 +57,16 @@ function CAGR() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
+        marketSize: "N/A",
         avgCAGR: "N/A",
         topSegment: "N/A",
         maxCAGR: "N/A",
-        minCAGR: "N/A",
       };
     }
 
+    // Market Size in US$ Million
+    const marketSize = filteredData.reduce((sum, d) => sum + (d.marketValueUsd || 0), 0);
+    
     const avgCAGR = filteredData.reduce((sum, d) => sum + d.cagr, 0) / filteredData.length;
     const segmentGroups = filteredData.reduce((acc, d) => {
       if (!acc[d.segment]) acc[d.segment] = [];
@@ -71,24 +78,24 @@ function CAGR() {
       .sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
     const cagrs = filteredData.map(d => d.cagr);
     const maxCAGR = Math.max(...cagrs);
-    const minCAGR = Math.min(...cagrs);
 
     return {
+      marketSize: `${(marketSize / 1000).toFixed(1)}M`, // In millions
       avgCAGR: `${avgCAGR.toFixed(2)}%`,
       topSegment,
       maxCAGR: `${maxCAGR.toFixed(2)}%`,
-      minCAGR: `${minCAGR.toFixed(2)}%`,
     };
   }, [filteredData]);
 
   const chartData1 = useMemo(() => {
     const grouped = filteredData.reduce((acc, d) => {
-      if (!acc[d.segment]) acc[d.segment] = [];
-      acc[d.segment].push(d.cagr);
+      const vaccine = d.disease || d.market;
+      if (!acc[vaccine]) acc[vaccine] = [];
+      acc[vaccine].push(d.cagr);
       return acc;
     }, {});
-    return Object.entries(grouped).map(([segment, cagrs]) => ({
-      segment,
+    return Object.entries(grouped).map(([vaccine, cagrs]) => ({
+      vaccine,
       cagr: cagrs.reduce((a, b) => a + b, 0) / cagrs.length,
     }));
   }, [filteredData]);
@@ -116,7 +123,25 @@ function CAGR() {
 
   return (
     <Box m="20px">
-      <Header title="CAGR Analysis" subtitle="Compound annual growth rate by segments" />
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb="20px">
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/")}
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: colors.grey[100],
+            "&:hover": {
+              backgroundColor: colors.blueAccent[800],
+            },
+          }}
+        >
+          Back to Home
+        </Button>
+      </Box>
+
+      <Header title="CAGR Analysis" subtitle="Compound annual growth rate by segments (%)" />
+
+      <DemoNotice />
 
       {/* Filters */}
       <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", mb: "20px" }}>
@@ -149,6 +174,11 @@ function CAGR() {
       <Grid container spacing={2} sx={{ mb: "20px" }}>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
+            <StatBox title={kpis.marketSize} subtitle="Market Size (US$ Million)" icon={<TrendingUpOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+          </Box>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
             <StatBox title={kpis.avgCAGR} subtitle="Avg CAGR %" icon={<TrendingUpOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
           </Box>
         </Grid>
@@ -162,20 +192,15 @@ function CAGR() {
             <StatBox title={kpis.maxCAGR} subtitle="Max CAGR" icon={<TrendingUpOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
           </Box>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.minCAGR} subtitle="Min CAGR" icon={<TrendingUpOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
-          </Box>
-        </Grid>
       </Grid>
 
       {/* Charts */}
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>CAGR by Segment</Typography>
+            <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>CAGR by Vaccine</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="cagr" nameKey="segment" color={colors.blueAccent[500]} />
+              <BarChart data={chartData1} dataKey="cagr" nameKey="vaccine" color={colors.blueAccent[500]} xAxisLabel="Vaccine Name" yAxisLabel="CAGR Share (%)" />
             </Box>
           </Box>
         </Grid>
@@ -183,7 +208,7 @@ function CAGR() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>CAGR Distribution by Region</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <PieChart data={chartData2} dataKey="cagr" nameKey="region" />
+              <PieChart data={chartData2} dataKey="cagr" nameKey="region" title="CAGR by Region (% Distribution)" />
             </Box>
           </Box>
         </Grid>
@@ -191,7 +216,7 @@ function CAGR() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>CAGR vs Volume</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <LineChart data={chartData3} dataKeys={["cagr"]} nameKey="volume" colors={[colors.blueAccent[500]]} />
+              <LineChart data={chartData3} dataKeys={["cagr"]} nameKey="volume" colors={[colors.blueAccent[500]]} xAxisLabel="Volume (Units)" yAxisLabel="CAGR (%)" />
             </Box>
           </Box>
         </Grid>

@@ -10,6 +10,8 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
+import ChartInstructions from "../../components/ChartInstructions";
 import LocalHospitalOutlinedIcon from "@mui/icons-material/LocalHospitalOutlined";
 import { getData, filterDataframe, formatNumber } from "../../utils/dataGenerator";
 
@@ -53,13 +55,15 @@ function Epidemiology() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
+        marketSize: "N/A",
         totalPrevalence: "N/A",
         totalIncidence: "N/A",
         topDisease: "N/A",
-        avgIncidenceRate: "N/A",
       };
     }
 
+    // Market Size in US$ Million
+    const marketSize = filteredData.reduce((sum, d) => sum + (d.marketValueUsd / 1000), 0); // Convert to millions
     const totalPrevalence = filteredData.reduce((sum, d) => sum + d.prevalence, 0);
     const totalIncidence = filteredData.reduce((sum, d) => sum + d.incidence, 0);
     const diseaseGroups = filteredData.reduce((acc, d) => {
@@ -67,13 +71,12 @@ function Epidemiology() {
       return acc;
     }, {});
     const topDisease = Object.entries(diseaseGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    const avgIncidenceRate = totalIncidence / filteredData.length;
 
     return {
-      totalPrevalence: formatNumber(totalPrevalence),
-      totalIncidence: formatNumber(totalIncidence),
+      marketSize: `${marketSize.toFixed(1)}M`,
+      totalPrevalence: `${(totalPrevalence / 1000).toFixed(1)}K`, // In thousands
+      totalIncidence: `${(totalIncidence / 1000).toFixed(1)}K`, // In thousands
       topDisease,
-      avgIncidenceRate: formatNumber(avgIncidenceRate),
     };
   }, [filteredData]);
 
@@ -169,6 +172,10 @@ function Epidemiology() {
 
       <Header title="Epidemiology Analysis" subtitle="Disease prevalence and incidence trends" />
 
+      <DemoNotice />
+
+      <ChartInstructions />
+
       {/* Filters */}
       <Box
         sx={{
@@ -233,8 +240,24 @@ function Epidemiology() {
             }}
           >
             <StatBox
+              title={kpis.marketSize}
+              subtitle="Market Size (US$ Million)"
+              icon={<LocalHospitalOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
+              progress={null}
+            />
+          </Box>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Box
+            sx={{
+              backgroundColor: colors.primary[400],
+              padding: "20px",
+              borderRadius: "8px",
+            }}
+          >
+            <StatBox
               title={kpis.totalPrevalence}
-              subtitle="Total Prevalence"
+              subtitle="Total Prevalence (000s)"
               icon={<LocalHospitalOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
               progress="0.75"
               onCircleClick={() => setOpenModal('prevalence')}
@@ -251,7 +274,7 @@ function Epidemiology() {
           >
             <StatBox
               title={kpis.totalIncidence}
-              subtitle="Total Incidence"
+              subtitle="Total Incidence (000s)"
               icon={<LocalHospitalOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
               progress="0.70"
               onCircleClick={() => setOpenModal('incidence')}
@@ -269,22 +292,6 @@ function Epidemiology() {
             <StatBox
               title={kpis.topDisease}
               subtitle="Top Disease"
-              icon={<LocalHospitalOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
-              progress={null}
-            />
-          </Box>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Box
-            sx={{
-              backgroundColor: colors.primary[400],
-              padding: "20px",
-              borderRadius: "8px",
-            }}
-          >
-            <StatBox
-              title={kpis.avgIncidenceRate}
-              subtitle="Avg Incidence Rate"
               icon={<LocalHospitalOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />}
               progress={null}
             />
@@ -308,6 +315,8 @@ function Epidemiology() {
               dataKey="prevalence"
               nameKey="disease"
               color={colors.blueAccent[500]}
+              xAxisLabel="Vaccine Type"
+              yAxisLabel="Number of People (in thousands)"
             />
           </Box>
         </Grid>
@@ -324,6 +333,7 @@ function Epidemiology() {
               data={chartData2}
               dataKey="incidence"
               nameKey="region"
+              title="Incidence by Region (% Distribution)"
             />
           </Box>
         </Grid>
@@ -341,6 +351,8 @@ function Epidemiology() {
               dataKeys={["prevalence", "incidence"]}
               nameKey="year"
               colors={[colors.blueAccent[500], colors.greenAccent[500]]}
+              xAxisLabel="Year"
+              yAxisLabel="Number of Cases"
             />
           </Box>
         </Grid>
@@ -363,15 +375,17 @@ function Epidemiology() {
           display: "flex", 
           justifyContent: "space-between", 
           alignItems: "center",
-          color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900],
+          color: theme.palette.mode === "dark" ? "#ffffff" : "#000000",
           pb: 1
         }}>
-          <Typography variant="h4" fontWeight="bold">
+          <Typography variant="h4" fontWeight="bold" sx={{ 
+            color: theme.palette.mode === "dark" ? "#ffffff" : "#000000" 
+          }}>
             {openModal === 'prevalence' ? 'Total Prevalence by Disease' : 'Total Incidence by Disease'}
           </Typography>
           <IconButton 
             onClick={() => setOpenModal(null)}
-            sx={{ color: theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900] }}
+            sx={{ color: theme.palette.mode === "dark" ? "#ffffff" : "#000000" }}
           >
             <CloseIcon />
           </IconButton>
@@ -391,45 +405,6 @@ function Epidemiology() {
                 colors.redAccent[300],
               ]}
             />
-          </Box>
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="h6" color={theme.palette.mode === "dark" ? colors.grey[300] : colors.grey[700]} sx={{ mb: 1 }}>
-              Disease Distribution:
-            </Typography>
-            <Box display="flex" flexWrap="wrap" gap={2}>
-              {(openModal === 'prevalence' ? prevalencePieData : incidencePieData).map((item, index) => (
-                <Box
-                  key={item.disease}
-                  sx={{
-                    backgroundColor: theme.palette.mode === "dark" ? colors.primary[500] : colors.grey[200],
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "50%",
-                      backgroundColor: [
-                        colors.blueAccent[500],
-                        colors.greenAccent[500],
-                        colors.redAccent[500],
-                        colors.blueAccent[300],
-                        colors.greenAccent[300],
-                        colors.redAccent[300],
-                      ][index % 6],
-                    }}
-                  />
-                  <Typography variant="body2" color={theme.palette.mode === "dark" ? colors.grey[100] : colors.grey[900]}>
-                    <strong>{item.disease}:</strong> {item.percent}%
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
           </Box>
         </DialogContent>
       </Dialog>

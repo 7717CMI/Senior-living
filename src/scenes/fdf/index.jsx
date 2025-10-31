@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Grid, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { Box, Grid, Button, Typography, useTheme, Dialog, DialogTitle, DialogContent, IconButton } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ScienceOutlinedIcon from "@mui/icons-material/ScienceOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import { tokens } from "../../theme";
@@ -9,11 +11,13 @@ import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import PieChart from "../../components/PieChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe, formatNumber } from "../../utils/dataGenerator";
 
 function FDF() {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const navigate = useNavigate();
   
   const data = getData();
   
@@ -59,35 +63,34 @@ function FDF() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
-        totalRevenue: "N/A",
+        totalMarketValue: "N/A",
+        totalQuantity: "N/A",
+        revenuePerFDF: "N/A",
         topFDF: "N/A",
-        topROA: "N/A",
-        avgRevenue: "N/A",
       };
     }
 
-    const totalRevenue = filteredData.reduce((sum, d) => sum + (d.revenue || d.marketValueUsd || 0), 0);
+    // Total Market Value in US$ Million
+    const totalMarketValue = filteredData.reduce((sum, d) => sum + (d.marketValueUsd || d.revenue || 0), 0);
     
+    // Total Quantity in Units Million (Box)
+    const totalQuantity = filteredData.reduce((sum, d) => sum + (d.volumeUnits || d.qty || 0), 0);
+    
+    // Total Revenue per FDF (Million US$)
     const fdfGroups = filteredData.reduce((acc, d) => {
       acc[d.fdf] = (acc[d.fdf] || 0) + (d.revenue || d.marketValueUsd || 0);
       return acc;
     }, {});
+    const numFDFs = Object.keys(fdfGroups).length;
+    const revenuePerFDF = numFDFs > 0 ? totalMarketValue / numFDFs : 0;
+    
     const topFDF = Object.entries(fdfGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    
-    const roaGroups = filteredData.reduce((acc, d) => {
-      acc[d.roa] = (acc[d.roa] || 0) + (d.revenue || d.marketValueUsd || 0);
-      return acc;
-    }, {});
-    const topROA = Object.entries(roaGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
-    
-    const fdfRevenues = Object.values(fdfGroups);
-    const avgRevenue = fdfRevenues.length > 0 ? fdfRevenues.reduce((a, b) => a + b, 0) / fdfRevenues.length : 0;
 
     return {
-      totalRevenue: formatNumber(totalRevenue),
+      totalMarketValue: `${(totalMarketValue / 1000).toFixed(1)}M`, // In millions
+      totalQuantity: `${(totalQuantity / 1000).toFixed(1)}M`, // In millions
+      revenuePerFDF: `${(revenuePerFDF / 1000).toFixed(1)}M`, // In millions
       topFDF,
-      topROA,
-      avgRevenue: formatNumber(avgRevenue),
     };
   }, [filteredData]);
 
@@ -147,7 +150,25 @@ function FDF() {
 
   return (
     <Box m="20px">
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb="20px">
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/")}
+          sx={{
+            backgroundColor: colors.blueAccent[700],
+            color: colors.grey[100],
+            "&:hover": {
+              backgroundColor: colors.blueAccent[800],
+            },
+          }}
+        >
+          Back to Home
+        </Button>
+      </Box>
+
       <Header title="FDF Analysis" subtitle="Formulation and ROA performance" />
+
+      <DemoNotice />
 
       <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", mb: "20px" }}>
         <Grid container spacing={2}>
@@ -181,22 +202,42 @@ function FDF() {
       <Grid container spacing={2} sx={{ mb: "20px" }}>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.totalRevenue} subtitle="Total Revenue" icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress="0.75" onCircleClick={() => setOpenModal('revenue')} />
+            <StatBox 
+              title={kpis.totalMarketValue} 
+              subtitle="Total Market Value (US$ Million)" 
+              icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.topFDF} subtitle="Top Formulation" icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox 
+              title={kpis.totalQuantity} 
+              subtitle="Total Quantity (Units Million)" 
+              icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.topROA} subtitle="Top ROA" icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox 
+              title={kpis.revenuePerFDF} 
+              subtitle="Revenue per FDF (Million US$)" 
+              icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.avgRevenue} subtitle="Avg Revenue per FDF" icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox 
+              title={kpis.topFDF} 
+              subtitle="Top Formulation" 
+              icon={<ScienceOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} 
+              progress={null} 
+            />
           </Box>
         </Grid>
       </Grid>
@@ -206,7 +247,7 @@ function FDF() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Revenue by Formulation</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="revenue" nameKey="fdf" color={colors.blueAccent[500]} />
+              <BarChart data={chartData1} dataKey="revenue" nameKey="fdf" color={colors.blueAccent[500]} xAxisLabel="Formulation (FDF)" yAxisLabel="Revenue (USD)" />
             </Box>
           </Box>
         </Grid>
@@ -214,7 +255,7 @@ function FDF() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Revenue Distribution by ROA</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <PieChart data={chartData2} dataKey="revenue" nameKey="roa" />
+              <PieChart data={chartData2} dataKey="revenue" nameKey="roa" title="Revenue by ROA (% Share)" />
             </Box>
           </Box>
         </Grid>
@@ -222,7 +263,7 @@ function FDF() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Revenue Matrix: FDF vs ROA</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData3} dataKey="revenue" nameKey="fdf" color={colors.blueAccent[500]} />
+              <BarChart data={chartData3} dataKey="revenue" nameKey="fdf" color={colors.blueAccent[500]} xAxisLabel="Formulation (FDF)" yAxisLabel="Revenue (USD)" />
             </Box>
           </Box>
         </Grid>

@@ -9,6 +9,7 @@ import StatBox from "../../components/StatBox";
 import FilterDropdown from "../../components/FilterDropdown";
 import BarChart from "../../components/BarChart";
 import LineChart from "../../components/LineChart";
+import DemoNotice from "../../components/DemoNotice";
 import { getData, filterDataframe } from "../../utils/dataGenerator";
 
 function Pricing() {
@@ -55,15 +56,16 @@ function Pricing() {
   const kpis = useMemo(() => {
     if (filteredData.length === 0) {
       return {
+        volumeUnits: "N/A",
         avgPrice: "N/A",
-        avgElasticity: "N/A",
         topBrand: "N/A",
         priceRange: "N/A",
       };
     }
 
+    // Volume in Million Units
+    const totalVolume = filteredData.reduce((sum, d) => sum + d.volumeUnits, 0);
     const avgPrice = filteredData.reduce((sum, d) => sum + d.price, 0) / filteredData.length;
-    const avgElasticity = filteredData.reduce((sum, d) => sum + d.priceElasticity, 0) / filteredData.length;
     const brandGroups = filteredData.reduce((acc, d) => {
       if (!acc[d.brand]) acc[d.brand] = [];
       acc[d.brand].push(d.price);
@@ -76,8 +78,8 @@ function Pricing() {
     const priceRange = `$${Math.min(...prices).toFixed(0)} - $${Math.max(...prices).toFixed(0)}`;
 
     return {
+      volumeUnits: `${(totalVolume / 1000).toFixed(1)}M`, // In millions
       avgPrice: `$${avgPrice.toFixed(2)}`,
-      avgElasticity: avgElasticity.toFixed(1),
       topBrand,
       priceRange,
     };
@@ -143,6 +145,8 @@ function Pricing() {
 
       <Header title="Pricing Analysis" subtitle="Price trends and elasticity insights" />
 
+      <DemoNotice />
+
       {/* Filters */}
       <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", mb: "20px" }}>
         <Grid container spacing={2}>
@@ -174,12 +178,12 @@ function Pricing() {
       <Grid container spacing={2} sx={{ mb: "20px" }}>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.avgPrice} subtitle="Avg Price (USD)" icon={<AttachMoneyOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox title={kpis.volumeUnits} subtitle="Volume (Units Million)" icon={<AttachMoneyOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px" }}>
-            <StatBox title={kpis.avgElasticity} subtitle="Price Elasticity" icon={<AttachMoneyOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
+            <StatBox title={kpis.avgPrice} subtitle="Average Price (US$)" icon={<AttachMoneyOutlinedIcon sx={{ color: colors.greenAccent[600], fontSize: "26px" }} />} progress={null} />
           </Box>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -200,7 +204,7 @@ function Pricing() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Top Brands by Price</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData1} dataKey="price" nameKey="brand" color={colors.blueAccent[500]} />
+              <BarChart data={chartData1} dataKey="price" nameKey="brand" color={colors.blueAccent[500]} xAxisLabel="Brand Name" yAxisLabel="Average Price (USD)" />
             </Box>
           </Box>
         </Grid>
@@ -208,7 +212,7 @@ function Pricing() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Average Price by Price Class</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <BarChart data={chartData2} dataKey="avgPrice" nameKey="priceClass" color={colors.greenAccent[500]} />
+              <BarChart data={chartData2} dataKey="avgPrice" nameKey="priceClass" color={colors.greenAccent[500]} xAxisLabel="Price Class" yAxisLabel="Average Price (USD)" />
             </Box>
           </Box>
         </Grid>
@@ -216,7 +220,7 @@ function Pricing() {
           <Box sx={{ backgroundColor: colors.primary[400], padding: "20px", borderRadius: "8px", height: "450px", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <Typography variant="h6" color={colors.grey[100]} sx={{ mb: "10px" }}>Price Trend Over Time</Typography>
             <Box sx={{ flex: 1, minHeight: 0 }}>
-              <LineChart data={chartData3} dataKeys={["price"]} nameKey="year" colors={[colors.blueAccent[500]]} />
+              <LineChart data={chartData3} dataKeys={["price"]} nameKey="year" colors={[colors.blueAccent[500]]} xAxisLabel="Year" yAxisLabel="Average Price (USD)" />
             </Box>
           </Box>
         </Grid>
