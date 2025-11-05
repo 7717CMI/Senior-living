@@ -1163,17 +1163,11 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
             </h2>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
           <div className={`p-7 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ${isDark ? 'bg-navy-card border-2 border-navy-light' : 'bg-white border-2 border-gray-200'}`}>
             <StatBox
               title={kpis.totalValue}
               subtitle={`Total ${filters.marketEvaluation === 'By Volume' ? 'Volume' : 'Market Value'}`}
-            />
-          </div>
-          <div className={`p-7 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 ${isDark ? 'bg-navy-card border-2 border-navy-light' : 'bg-white border-2 border-gray-200'}`}>
-            <StatBox
-              title={kpis.avgValue}
-              subtitle={`Average ${filters.marketEvaluation === 'By Volume' ? 'Volume' : 'Value'}`}
             />
           </div>
         </div>
