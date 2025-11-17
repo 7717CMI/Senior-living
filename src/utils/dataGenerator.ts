@@ -108,21 +108,24 @@ const generateComprehensiveData = (): VaccineData[] => {
     }
   }
   
+  // Get all countries from countryIncomeMap
+  const allCountries: string[] = []
+  Object.values(countryIncomeMap).forEach(regionCountries => {
+    Object.keys(regionCountries).forEach(country => {
+      if (!allCountries.includes(country)) {
+        allCountries.push(country)
+      }
+    })
+  })
+  
   // Vaccine to countries mapping - each vaccine only appears in specific countries
+  // Hexavalent is available in ALL countries
   const vaccineCountryMap: Record<string, string[]> = {
     "HPV": ["Nepal", "Philippines"],
     "Shingles": ["Nepal", "Philippines"],
     "IPV": ["Myanmar"],
     "BCG": ["Sri Lanka"],
-    "Hexavalent": [
-      "India", "Vietnam", "Pakistan", "Bangladesh", "Cambodia", "Bhutan",
-      "China", "Malaysia", "Indonesia", "Yemen", "Kazakhstan", "Thailand",
-      "Egypt", "Afghanistan", "Iran", "Morocco", "Kuwait", "Brazil",
-      "Tunisia", "Jordan", "Qatar", "Mexico", "Iraq", "Libya",
-      "Saudi Arabia", "Colombia", "Chile", "Bahrain", "UAE", "Argentina",
-      "Peru", "Oman", "Uganda", "Kenya", "Mauritius", "Nigeria",
-      "Ethiopia", "Tanzania", "South Africa"
-    ]
+    "Hexavalent": allCountries.sort() // Hexavalent available in all countries
   }
 
   const ageGroups = ["Pediatric / Children / Adolescence", "Adult", "Geriatric"]
@@ -288,9 +291,6 @@ export const getData = (): VaccineData[] => {
   if (!dataCache) {
     try {
       dataCache = generateComprehensiveData()
-      // Log available brands for debugging
-      const hexavalentBrands = [...new Set(dataCache.filter(d => d.disease === 'Hexavalent').map(d => d.brand))].sort()
-      console.log('Hexavalent brands in data:', hexavalentBrands)
     } catch (error) {
       console.error('Error generating data:', error)
       dataCache = []
