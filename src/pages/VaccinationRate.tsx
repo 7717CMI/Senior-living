@@ -26,7 +26,15 @@ export function VaccinationRate({ onNavigate }: VaccinationRateProps) {
     const availableCountries = [...new Set(data.map(d => d.country))].sort()
     const availableDiseases = [...new Set(data.map(d => d.disease))].sort()
     
-    const year2025 = availableYears.includes(2025) ? [2025] : (availableYears.length > 0 ? [availableYears[availableYears.length - 1]] : [])
+    // Select 2021 and 2022 by default
+    const defaultYears = availableYears.includes(2021) && availableYears.includes(2022)
+      ? [2021, 2022]
+      : availableYears.length >= 2 
+        ? availableYears.slice(-2) 
+        : availableYears.length === 1 
+          ? [availableYears[0]] 
+          : []
+    
     const defaultCountries = availableCountries.includes('Nepal') && availableCountries.includes('Philippines')
       ? ['Nepal', 'Philippines']
       : availableCountries.slice(0, 2)
@@ -41,7 +49,7 @@ export function VaccinationRate({ onNavigate }: VaccinationRateProps) {
           : []
     
     return {
-      year: year2025,
+      year: defaultYears,
       disease: defaultDiseases,
       country: defaultCountries,
     }

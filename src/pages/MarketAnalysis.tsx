@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { getData, filterDataframe, formatWithCommas, FilterOptions } from '../utils/dataGenerator'
+import { getData, filterDataframe, formatWithCommas, FilterOptions, downloadCSV } from '../utils/dataGenerator'
 import { StatBox } from '../components/StatBox'
 import { FilterDropdown } from '../components/FilterDropdown'
 import { SegmentGroupedBarChart } from '../components/SegmentGroupedBarChart'
 import { RegionCountryStackedBarChart } from '../components/RegionCountryStackedBarChart'
+import { CrossSegmentStackedBarChart } from '../components/CrossSegmentStackedBarChart'
 import { DemoNotice } from '../components/DemoNotice'
 import { useTheme } from '../context/ThemeContext'
 import { InfoTooltip } from '../components/InfoTooltip'
@@ -15,39 +16,33 @@ interface MarketAnalysisProps {
 }
 
 type MarketEvaluationType = 'By Value' | 'By Volume'
-type SegmentType = 'By Brand' | 'By Age' | 'By Gender' | 'By ROA' | 'By FDF' | 'By Procurement' | 'By Country' | null
+type SegmentType = 'By Type' | 'By Service Offering' | 'By Care Option' | 'By Application' | 'By Gender' | 'By Age Group'
 
 interface MarketAnalysisFilters extends FilterOptions {
-  vaccineType?: string[]
-  marketEvaluation?: MarketEvaluationType
-  segment?: SegmentType
-  // Segment-specific filters
-  brand?: string[]
-  ageGroup?: string[]
+  // Main filters from excel sheet
+  year?: number[]
+  serviceOffering?: string[]
+  careOption?: string[]
+  application?: string[]
   gender?: string[]
-  roa?: string[]
-  dosageForm?: string[]
-  procurementType?: string[]
-  // Cross-segment analysis
-  crossSegment?: SegmentType
-  // Standalone cross-segment analysis filters
+  country?: string[]
+  ageGroup?: string[]
+  marketEvaluation?: MarketEvaluationType
+  // Cross-segment analysis filters
   crossSegmentPrimary?: SegmentType
-  crossSegmentPrimaryBrand?: string[]
-  crossSegmentPrimaryAgeGroup?: string[]
+  crossSegmentPrimaryType?: string[]
+  crossSegmentPrimaryServiceOffering?: string[]
+  crossSegmentPrimaryCareOption?: string[]
+  crossSegmentPrimaryApplication?: string[]
   crossSegmentPrimaryGender?: string[]
-  crossSegmentPrimaryRoa?: string[]
-  crossSegmentPrimaryDosageForm?: string[]
-  crossSegmentPrimaryProcurementType?: string[]
-  // Cross-segment sub-filters
-  crossSegmentBrand?: string[]
-  crossSegmentAgeGroup?: string[]
+  crossSegmentPrimaryAgeGroup?: string[]
+  crossSegment?: SegmentType
+  crossSegmentType?: string[]
+  crossSegmentServiceOffering?: string[]
+  crossSegmentCareOption?: string[]
+  crossSegmentApplication?: string[]
   crossSegmentGender?: string[]
-  crossSegmentRoa?: string[]
-  crossSegmentDosageForm?: string[]
-  crossSegmentProcurementType?: string[]
-  crossSegmentCountry?: string[]
-  // Primary segment country filter
-  crossSegmentPrimaryCountry?: string[]
+  crossSegmentAgeGroup?: string[]
 }
 
 export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
@@ -64,64 +59,66 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
   
   const [filters, setFilters] = useState<MarketAnalysisFilters>(() => {
     try {
-    const availableYears = [...new Set(data.map(d => d.year))].sort()
-    const availableCountries = [...new Set(data.map(d => d.country))].sort()
-    const availableDiseases = [...new Set(data.map(d => d.disease))].sort()
-    
-    const year2025 = availableYears.includes(2025) ? ['2025'] : (availableYears.length > 0 ? [String(availableYears[availableYears.length - 1])] : [])
-      const defaultCountries = availableCountries.length >= 2 && availableCountries.includes('Nepal') && availableCountries.includes('Philippines')
-      ? ['Nepal', 'Philippines']
-        : availableCountries.length >= 2
-          ? availableCountries.slice(0, 2)
-          : availableCountries.length === 1
-            ? [availableCountries[0]]
+      // Get available options for new filters
+      const availableYears = [...new Set(data.map(d => d.year))].sort()
+      const availableServiceOfferings = [...new Set(data.map(d => d.serviceOffering))].sort()
+      const availableCareOptions = [...new Set(data.map(d => d.careOption))].sort()
+      const availableApplications = [...new Set(data.map(d => d.application))].sort()
+      const availableGenders = [...new Set(data.map(d => d.gender))].sort()
+      const availableCountries = [...new Set(data.map(d => d.country))].sort()
+      const availableAgeGroups = [...new Set(data.map(d => d.ageGroup))].sort()
+      
+      // Default year selection - select 2021 and 2022
+      const defaultYear = availableYears.includes(2021) && availableYears.includes(2022)
+        ? [2021, 2022]
+        : availableYears.length >= 2 
+          ? availableYears.slice(-2) 
+          : availableYears.length === 1 
+            ? [availableYears[0]] 
             : []
       
-      const defaultDiseases = availableDiseases.length >= 2 && availableDiseases.includes('HPV') && availableDiseases.includes('Shingles')
-      ? ['HPV', 'Shingles']
-      : availableDiseases.length >= 2
-        ? availableDiseases.slice(0, 2)
-        : availableDiseases.length === 1
-          ? [availableDiseases[0]]
-          : []
-    
-    // Get available brands for default selection
-      let defaultBrands: string[] = []
-      if (year2025.length > 0 && defaultDiseases.length > 0 && defaultCountries.length > 0) {
-        try {
-    const baseData = filterDataframe(data, {
-            year: year2025.map(y => Number(y)),
-      disease: defaultDiseases,
-      country: defaultCountries,
-    } as FilterOptions)
-    const availableBrands = [...new Set(baseData.map(d => d.brand))].sort()
-          defaultBrands = availableBrands.length >= 2
-      ? availableBrands.slice(0, 2)
-      : availableBrands.length === 1
-        ? [availableBrands[0]]
-        : []
-        } catch (error) {
-          console.error('Error filtering data for brands:', error)
-        }
-      }
-    
-    return {
-        year: year2025.length > 0 ? year2025.map(y => Number(y)) : (availableYears.length > 0 ? [availableYears[0]] : []),
-      vaccineType: defaultDiseases,
-      country: defaultCountries,
-      marketEvaluation: 'By Value',
-      segment: 'By Brand',
-      brand: defaultBrands,
+      // Default selections - select first 2 items for each filter
+      const defaultServiceOfferings = availableServiceOfferings.length >= 2 
+        ? availableServiceOfferings.slice(0, 2)
+        : availableServiceOfferings
+      
+      const defaultCareOptions = availableCareOptions.length >= 2
+        ? availableCareOptions.slice(0, 2)
+        : availableCareOptions
+      
+      const defaultApplications = availableApplications.length >= 2
+        ? availableApplications.slice(0, 2)
+        : availableApplications
+      
+      const defaultGenders = availableGenders // Select all genders by default
+      
+      const defaultCountries = availableCountries.length >= 2
+        ? availableCountries.slice(0, 2)
+        : availableCountries
+      
+      const defaultAgeGroups = availableAgeGroups // Select all age groups by default
+      
+      return {
+        year: defaultYear,
+        serviceOffering: defaultServiceOfferings,
+        careOption: defaultCareOptions,
+        application: defaultApplications,
+        gender: defaultGenders,
+        country: defaultCountries,
+        ageGroup: defaultAgeGroups,
+        marketEvaluation: 'By Value',
       }
     } catch (error) {
       console.error('Error initializing filters:', error)
       return {
         year: [],
-        vaccineType: [],
+        serviceOffering: [],
+        careOption: [],
+        application: [],
+        gender: [],
         country: [],
+        ageGroup: [],
         marketEvaluation: 'By Value',
-        segment: 'By Brand',
-        brand: [],
       }
     }
   })
@@ -130,135 +127,78 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     if (!data || data.length === 0) return []
     
     try {
-    let filtered = filterDataframe(data, {
-        year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-        disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-        country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-    } as FilterOptions)
-    
-    // Apply segment-specific filters dynamically based on selected segment
-    // Only filter if specific values are selected, otherwise show all segment values
-    if (filters.segment === 'By Brand') {
-      if (filters.brand && filters.brand.length > 0) {
-        filtered = filtered.filter(d => filters.brand!.includes(d.brand))
+      let filtered = data
+      
+      // Apply new filters
+      if (filters.year && filters.year.length > 0) {
+        filtered = filtered.filter(d => filters.year!.includes(d.year))
       }
-    } else if (filters.segment === 'By Age') {
-      if (filters.ageGroup && filters.ageGroup.length > 0) {
-        filtered = filtered.filter(d => filters.ageGroup!.includes(d.ageGroup))
+      
+      if (filters.serviceOffering && filters.serviceOffering.length > 0) {
+        filtered = filtered.filter(d => filters.serviceOffering!.includes(d.serviceOffering))
       }
-    } else if (filters.segment === 'By Gender') {
+      
+      if (filters.careOption && filters.careOption.length > 0) {
+        filtered = filtered.filter(d => filters.careOption!.includes(d.careOption))
+      }
+      
+      if (filters.application && filters.application.length > 0) {
+        filtered = filtered.filter(d => filters.application!.includes(d.application))
+      }
+      
       if (filters.gender && filters.gender.length > 0) {
         filtered = filtered.filter(d => filters.gender!.includes(d.gender))
       }
-      } else if (filters.segment === 'By ROA') {
-      if (filters.roa && filters.roa.length > 0) {
-        filtered = filtered.filter(d => filters.roa!.includes(d.roa))
+      
+      if (filters.country && filters.country.length > 0) {
+        filtered = filtered.filter(d => filters.country!.includes(d.country))
       }
-      } else if (filters.segment === 'By FDF') {
-      if (filters.dosageForm && filters.dosageForm.length > 0) {
-        filtered = filtered.filter(d => filters.dosageForm!.includes(d.fdf))
+      
+      if (filters.ageGroup && filters.ageGroup.length > 0) {
+        filtered = filtered.filter(d => filters.ageGroup!.includes(d.ageGroup))
       }
-    } else if (filters.segment === 'By Procurement') {
-      if (filters.procurementType && filters.procurementType.length > 0) {
-        filtered = filtered.filter(d => filters.procurementType!.includes(d.publicPrivate))
-      }
-    }
-    
-    return filtered
+      
+      return filtered
     } catch (error) {
       console.error('Error filtering data:', error)
       return []
     }
   }, [data, filters])
 
-  // Get unique options based on filtered data (dynamic based on segment selection)
+  // Get unique options for the new filters
   const uniqueOptions = useMemo(() => {
     try {
       if (!data || data.length === 0) {
         return {
           years: [],
-          diseases: [],
-          countries: [],
-          brands: [],
-          ageGroups: [],
+          serviceOfferings: [],
+          careOptions: [],
+          applications: [],
           genders: [],
-          roaTypes: [],
-          fdfTypes: [],
-          procurementTypes: [],
+          countries: [],
+          ageGroups: [],
         }
       }
       
-    // Base filters always use full dataset
-      let baseData: any[] = []
-      try {
-        baseData = filterDataframe(data, {
-          year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-          disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-          country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-    } as FilterOptions)
-      } catch (error) {
-        console.error('Error filtering base data:', error)
-        baseData = data
-      }
-    
-    // For brands, show all brands for the selected vaccine type (not filtered by country)
-    // This allows users to see available brands even if selected countries don't have that vaccine
-    let brandsData: any[] = []
-    try {
-      brandsData = filterDataframe(data, {
-        year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-        disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-        // Don't filter by country for brands - show all brands for the vaccine type
-      } as FilterOptions)
-    } catch (error) {
-      console.error('Error filtering brands data:', error)
-      brandsData = data
-    }
-    
-    // For segment-specific options, use filtered data to show only available options
-    let segmentFilteredData = baseData
-    
-    // Apply segment-specific filters if they exist
-    if (filters.segment === 'By Brand' && filters.brand && filters.brand.length > 0) {
-      segmentFilteredData = segmentFilteredData.filter(d => filters.brand!.includes(d.brand))
-    } else if (filters.segment === 'By Age' && filters.ageGroup && filters.ageGroup.length > 0) {
-      segmentFilteredData = segmentFilteredData.filter(d => filters.ageGroup!.includes(d.ageGroup))
-    } else if (filters.segment === 'By Gender' && filters.gender && filters.gender.length > 0) {
-      segmentFilteredData = segmentFilteredData.filter(d => filters.gender!.includes(d.gender))
-      } else if (filters.segment === 'By ROA' && filters.roa && filters.roa.length > 0) {
-        segmentFilteredData = segmentFilteredData.filter(d => filters.roa!.includes(d.roa))
-      } else if (filters.segment === 'By FDF') {
-      if (filters.dosageForm && filters.dosageForm.length > 0) {
-        segmentFilteredData = segmentFilteredData.filter(d => filters.dosageForm!.includes(d.fdf))
-      }
-    } else if (filters.segment === 'By Procurement' && filters.procurementType && filters.procurementType.length > 0) {
-      segmentFilteredData = segmentFilteredData.filter(d => filters.procurementType!.includes(d.publicPrivate))
-    }
-    
-    return {
-      years: [...new Set(data.map(d => d.year))].sort(),
-      diseases: [...new Set(data.map(d => d.disease))].sort(),
-      countries: [...new Set(data.map(d => d.country))].sort(),
-      // Brands: Show all brands for the selected vaccine type (not filtered by country)
-      brands: [...new Set(brandsData.map(d => d.brand))].sort(),
-      ageGroups: [...new Set(baseData.map(d => d.ageGroup))].sort(),
-      genders: [...new Set(baseData.map(d => d.gender))].sort(),
-      roaTypes: [...new Set(baseData.map(d => d.roa))].sort(),
-      fdfTypes: [...new Set(baseData.map(d => d.fdf))].sort(),
-      procurementTypes: [...new Set(baseData.map(d => d.publicPrivate))].sort(),
+      return {
+        years: [...new Set(data.map(d => d.year))].sort(),
+        serviceOfferings: [...new Set(data.map(d => d.serviceOffering))].sort(),
+        careOptions: [...new Set(data.map(d => d.careOption))].sort(),
+        applications: [...new Set(data.map(d => d.application))].sort(),
+        genders: [...new Set(data.map(d => d.gender))].sort(),
+        countries: [...new Set(data.map(d => d.country))].sort(),
+        ageGroups: [...new Set(data.map(d => d.ageGroup))].sort(),
       }
     } catch (error) {
       console.error('Error calculating unique options:', error)
       return {
         years: [],
-        diseases: [],
-        countries: [],
-        brands: [],
-        ageGroups: [],
+        serviceOfferings: [],
+        careOptions: [],
+        applications: [],
         genders: [],
-        roaTypes: [],
-        fdfTypes: [],
-        procurementTypes: [],
+        countries: [],
+        ageGroups: [],
       }
     }
   }, [data, filters])
@@ -269,14 +209,25 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
       year: filters.year && filters.year.length > 0 
         ? filters.year.join(', ') 
         : 'All Years',
-      diseases: filters.vaccineType && filters.vaccineType.length > 0 
-        ? filters.vaccineType 
-        : [],
-      countries: filters.country && filters.country.length > 0 
+      serviceOffering: filters.serviceOffering && filters.serviceOffering.length > 0 
+        ? filters.serviceOffering.join(', ') 
+        : 'All',
+      careOption: filters.careOption && filters.careOption.length > 0 
+        ? filters.careOption.join(', ') 
+        : 'All',
+      application: filters.application && filters.application.length > 0 
+        ? filters.application.join(', ') 
+        : 'All',
+      gender: filters.gender && filters.gender.length > 0 
+        ? filters.gender.join(', ') 
+        : 'All',
+      country: filters.country && filters.country.length > 0 
         ? filters.country.join(', ') 
-        : 'All Countries',
+        : 'All',
+      ageGroup: filters.ageGroup && filters.ageGroup.length > 0 
+        ? filters.ageGroup.join(', ') 
+        : 'All',
       marketEvaluation: filters.marketEvaluation || 'By Value',
-      segment: filters.segment || 'None',
     }
   }, [filters])
 
@@ -292,19 +243,19 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     return filters.marketEvaluation === 'By Volume' ? 'Market Volume (Units)' : 'Market Value (US$ Million)'
   }
 
-  // Graph 1: Market Value by Brand (grouped by Year)
-  // X axis: Brand name, Y axis: Market Value, grouped by Year
-  const marketValueByBrandData = useMemo(() => {
+  // Graph 1: Market Value by Type (grouped by Year)
+  // X axis: Year, Y axis: Market Value, grouped by Type
+  const marketValueByTypeData = useMemo(() => {
     const years = [...new Set(filteredData.map(d => d.year))].sort()
-    const brands = [...new Set(filteredData.map(d => d.brand))].sort()
+    const types = [...new Set(filteredData.map(d => d.type))].sort()
     
-    if (years.length === 0 || brands.length === 0) return []
+    if (years.length === 0 || types.length === 0) return []
     
     return years.map((year) => {
       const entry: Record<string, number | string> = { year: String(year) }
-      brands.forEach((brand) => {
-        const yearData = filteredData.filter(d => d.year === year && d.brand === brand)
-        entry[brand] = yearData.reduce((sum, d) => sum + getDataValue(d), 0)
+      types.forEach((type) => {
+        const yearData = filteredData.filter(d => d.year === year && d.type === type)
+        entry[type] = yearData.reduce((sum, d) => sum + getDataValue(d), 0)
       })
       return entry
     })
@@ -359,15 +310,24 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     }).flat()
   }, [filteredData, filters.marketEvaluation])
 
+  // All available segments from Excel sheet
+  const allAvailableSegments = useMemo(() => {
+    const allSegments: SegmentType[] = ['By Type', 'By Service Offering', 'By Care Option', 'By Application', 'By Gender', 'By Age Group']
+    // Filter based on marketEvaluation: hide By Age Group and By Gender when By Volume is selected
+    return filters.marketEvaluation === 'By Volume'
+      ? allSegments.filter(s => s !== 'By Age Group' && s !== 'By Gender')
+      : allSegments
+  }, [filters.marketEvaluation])
+
+  // Available segments for primary dropdown (exclude the cross-segment selection)
+  const availablePrimarySegments = useMemo(() => {
+    return allAvailableSegments.filter(s => s !== filters.crossSegment && s !== null)
+  }, [allAvailableSegments, filters.crossSegment])
+
   // Available cross-segments for standalone cross-analysis (exclude the primary cross-segment)
   const availableCrossSegmentsForStandalone = useMemo(() => {
-    const allSegments: SegmentType[] = ['By Brand', 'By Age', 'By Gender', 'By ROA', 'By FDF', 'By Procurement', 'By Country']
-    // Filter based on marketEvaluation: hide By Age and By Gender when By Volume is selected
-    const filteredSegments = filters.marketEvaluation === 'By Volume'
-      ? allSegments.filter(s => s !== 'By Age' && s !== 'By Gender')
-      : allSegments
-    return filteredSegments.filter(s => s !== filters.crossSegmentPrimary && s !== null)
-  }, [filters.crossSegmentPrimary, filters.marketEvaluation])
+    return allAvailableSegments.filter(s => s !== filters.crossSegmentPrimary && s !== null)
+  }, [allAvailableSegments, filters.crossSegmentPrimary])
 
   // Standalone cross-segment filtered data (apply crossSegmentPrimary filters)
   const standaloneCrossSegmentFilteredData = useMemo(() => {
@@ -376,38 +336,127 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     let filtered = filteredData
     
     // Apply segment-specific filters for crossSegmentPrimary
-    if (filters.crossSegmentPrimary === 'By Brand') {
-      if (filters.crossSegmentPrimaryBrand && filters.crossSegmentPrimaryBrand.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentPrimaryBrand!.includes(d.brand))
+    if (filters.crossSegmentPrimary === 'By Type') {
+      if (filters.crossSegmentPrimaryType && filters.crossSegmentPrimaryType.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentPrimaryType!.includes(d.type))
       }
-    } else if (filters.crossSegmentPrimary === 'By Age') {
-      if (filters.crossSegmentPrimaryAgeGroup && filters.crossSegmentPrimaryAgeGroup.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentPrimaryAgeGroup!.includes(d.ageGroup))
+    } else if (filters.crossSegmentPrimary === 'By Service Offering') {
+      if (filters.crossSegmentPrimaryServiceOffering && filters.crossSegmentPrimaryServiceOffering.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentPrimaryServiceOffering!.includes(d.serviceOffering))
+      }
+    } else if (filters.crossSegmentPrimary === 'By Care Option') {
+      if (filters.crossSegmentPrimaryCareOption && filters.crossSegmentPrimaryCareOption.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentPrimaryCareOption!.includes(d.careOption))
+      }
+    } else if (filters.crossSegmentPrimary === 'By Application') {
+      if (filters.crossSegmentPrimaryApplication && filters.crossSegmentPrimaryApplication.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentPrimaryApplication!.includes(d.application))
       }
     } else if (filters.crossSegmentPrimary === 'By Gender') {
       if (filters.crossSegmentPrimaryGender && filters.crossSegmentPrimaryGender.length > 0) {
         filtered = filtered.filter(d => filters.crossSegmentPrimaryGender!.includes(d.gender))
       }
-    } else if (filters.crossSegmentPrimary === 'By ROA') {
-      if (filters.crossSegmentPrimaryRoa && filters.crossSegmentPrimaryRoa.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentPrimaryRoa!.includes(d.roa))
-      }
-    } else if (filters.crossSegmentPrimary === 'By FDF') {
-      if (filters.crossSegmentPrimaryDosageForm && filters.crossSegmentPrimaryDosageForm.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentPrimaryDosageForm!.includes(d.fdf))
-      }
-    } else if (filters.crossSegmentPrimary === 'By Procurement') {
-      if (filters.crossSegmentPrimaryProcurementType && filters.crossSegmentPrimaryProcurementType.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentPrimaryProcurementType!.includes(d.publicPrivate))
-      }
-    } else if (filters.crossSegmentPrimary === 'By Country') {
-      if (filters.crossSegmentPrimaryCountry && filters.crossSegmentPrimaryCountry.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentPrimaryCountry!.includes(d.country))
+    } else if (filters.crossSegmentPrimary === 'By Age Group') {
+      if (filters.crossSegmentPrimaryAgeGroup && filters.crossSegmentPrimaryAgeGroup.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentPrimaryAgeGroup!.includes(d.ageGroup))
       }
     }
     
     return filtered
-  }, [filteredData, filters.crossSegmentPrimary, filters.crossSegmentPrimaryBrand, filters.crossSegmentPrimaryAgeGroup, filters.crossSegmentPrimaryGender, filters.crossSegmentPrimaryRoa, filters.crossSegmentPrimaryDosageForm, filters.crossSegmentPrimaryProcurementType, filters.crossSegmentPrimaryCountry])
+  }, [filteredData, filters.crossSegmentPrimary, filters.crossSegmentPrimaryType, filters.crossSegmentPrimaryServiceOffering, filters.crossSegmentPrimaryCareOption, filters.crossSegmentPrimaryApplication, filters.crossSegmentPrimaryAgeGroup, filters.crossSegmentPrimaryGender])
+
+  // Cross-segment analysis data for graph display
+  const crossSegmentAnalysisData = useMemo(() => {
+    if (!filters.crossSegmentPrimary || !filters.crossSegment || filters.crossSegmentPrimary === filters.crossSegment) return []
+    
+    let filtered = standaloneCrossSegmentFilteredData
+    
+    // Apply cross-segment filters
+    if (filters.crossSegment === 'By Type') {
+      if (filters.crossSegmentType && filters.crossSegmentType.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentType!.includes(d.type))
+      }
+    } else if (filters.crossSegment === 'By Service Offering') {
+      if (filters.crossSegmentServiceOffering && filters.crossSegmentServiceOffering.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentServiceOffering!.includes(d.serviceOffering))
+      }
+    } else if (filters.crossSegment === 'By Care Option') {
+      if (filters.crossSegmentCareOption && filters.crossSegmentCareOption.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentCareOption!.includes(d.careOption))
+      }
+    } else if (filters.crossSegment === 'By Application') {
+      if (filters.crossSegmentApplication && filters.crossSegmentApplication.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentApplication!.includes(d.application))
+      }
+    } else if (filters.crossSegment === 'By Age Group') {
+      if (filters.crossSegmentAgeGroup && filters.crossSegmentAgeGroup.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentAgeGroup!.includes(d.ageGroup))
+      }
+    } else if (filters.crossSegment === 'By Gender') {
+      if (filters.crossSegmentGender && filters.crossSegmentGender.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentGender!.includes(d.gender))
+      }
+    }
+    
+    // Get segment keys
+    let primarySegmentKey = ''
+    if (filters.crossSegmentPrimary === 'By Type') primarySegmentKey = 'type'
+    else if (filters.crossSegmentPrimary === 'By Service Offering') primarySegmentKey = 'serviceOffering'
+    else if (filters.crossSegmentPrimary === 'By Care Option') primarySegmentKey = 'careOption'
+    else if (filters.crossSegmentPrimary === 'By Application') primarySegmentKey = 'application'
+    else if (filters.crossSegmentPrimary === 'By Age Group') primarySegmentKey = 'ageGroup'
+    else if (filters.crossSegmentPrimary === 'By Gender') primarySegmentKey = 'gender'
+    
+    let crossSegmentKey = ''
+    if (filters.crossSegment === 'By Type') crossSegmentKey = 'type'
+    else if (filters.crossSegment === 'By Service Offering') crossSegmentKey = 'serviceOffering'
+    else if (filters.crossSegment === 'By Care Option') crossSegmentKey = 'careOption'
+    else if (filters.crossSegment === 'By Application') crossSegmentKey = 'application'
+    else if (filters.crossSegment === 'By Age Group') crossSegmentKey = 'ageGroup'
+    else if (filters.crossSegment === 'By Gender') crossSegmentKey = 'gender'
+    
+    if (!primarySegmentKey || !crossSegmentKey) return []
+    
+    // Get unique values
+    const primaryValues = [...new Set(filtered.map(d => d[primarySegmentKey as keyof typeof d] as string))].sort()
+    const crossValues = [...new Set(filtered.map(d => d[crossSegmentKey as keyof typeof d] as string))].sort()
+    
+    if (primaryValues.length === 0 || crossValues.length === 0) return []
+    
+    // Create data: X-axis = primary segment values, stacked bars = cross segment values
+    return primaryValues.map((primaryValue) => {
+      const entry: Record<string, number | string> = { name: primaryValue }
+      
+      crossValues.forEach((crossValue) => {
+        const matchingData = filtered.filter(d => 
+          d[primarySegmentKey as keyof typeof d] === primaryValue &&
+          d[crossSegmentKey as keyof typeof d] === crossValue
+        )
+        entry[crossValue] = matchingData.reduce((sum, d) => sum + getDataValue(d), 0)
+      })
+      
+      return entry
+    })
+  }, [standaloneCrossSegmentFilteredData, filters.crossSegmentPrimary, filters.crossSegment, filters.crossSegmentType, filters.crossSegmentServiceOffering, filters.crossSegmentCareOption, filters.crossSegmentApplication, filters.crossSegmentAgeGroup, filters.crossSegmentGender, filters.marketEvaluation])
+
+  // Get cross-segment data keys for the chart
+  const crossSegmentDataKeys = useMemo(() => {
+    if (!filters.crossSegment || crossSegmentAnalysisData.length === 0) return []
+    
+    let crossSegmentKey = ''
+    if (filters.crossSegment === 'By Type') crossSegmentKey = 'type'
+    else if (filters.crossSegment === 'By Service Offering') crossSegmentKey = 'serviceOffering'
+    else if (filters.crossSegment === 'By Care Option') crossSegmentKey = 'careOption'
+    else if (filters.crossSegment === 'By Application') crossSegmentKey = 'application'
+    else if (filters.crossSegment === 'By Age Group') crossSegmentKey = 'ageGroup'
+    else if (filters.crossSegment === 'By Gender') crossSegmentKey = 'gender'
+    
+    if (!crossSegmentKey) return []
+    
+    // Get all unique cross-segment values from the filtered data
+    const crossValues = [...new Set(standaloneCrossSegmentFilteredData.map(d => d[crossSegmentKey as keyof typeof d] as string))].sort()
+    return crossValues
+  }, [filters.crossSegment, crossSegmentAnalysisData, standaloneCrossSegmentFilteredData])
 
   // Standalone cross-segment analysis data - Individual level granularity
   // This creates data grouped by primary segment with cross-segment breakdown
@@ -418,38 +467,48 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     let filtered = standaloneCrossSegmentFilteredData
     
     // Apply cross-segment filters if they exist
-    if (filters.crossSegment === 'By Brand') {
-      if (filters.crossSegmentBrand && filters.crossSegmentBrand.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentBrand!.includes(d.brand))
+    if (filters.crossSegment === 'By Type') {
+      if (filters.crossSegmentType && filters.crossSegmentType.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentType!.includes(d.type))
       }
-    } else if (filters.crossSegment === 'By Age') {
+    } else if (filters.crossSegment === 'By Service Offering') {
+      if (filters.crossSegmentServiceOffering && filters.crossSegmentServiceOffering.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentServiceOffering!.includes(d.serviceOffering))
+      }
+    } else if (filters.crossSegment === 'By Care Option') {
+      if (filters.crossSegmentCareOption && filters.crossSegmentCareOption.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentCareOption!.includes(d.careOption))
+      }
+    } else if (filters.crossSegment === 'By Application') {
+      if (filters.crossSegmentApplication && filters.crossSegmentApplication.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentApplication!.includes(d.application))
+      }
+    } else if (filters.crossSegment === 'By Age Group') {
       if (filters.crossSegmentAgeGroup && filters.crossSegmentAgeGroup.length > 0) {
         filtered = filtered.filter(d => filters.crossSegmentAgeGroup!.includes(d.ageGroup))
       }
-    } else if (filters.crossSegment === 'By Country') {
-      if (filters.crossSegmentCountry && filters.crossSegmentCountry.length > 0) {
-        filtered = filtered.filter(d => filters.crossSegmentCountry!.includes(d.country))
+    } else if (filters.crossSegment === 'By Gender') {
+      if (filters.crossSegmentGender && filters.crossSegmentGender.length > 0) {
+        filtered = filtered.filter(d => filters.crossSegmentGender!.includes(d.gender))
       }
     }
     
     // Get keys for both segments
       let primarySegmentKey = ''
-    if (filters.crossSegmentPrimary === 'By Brand') primarySegmentKey = 'brand'
-    else if (filters.crossSegmentPrimary === 'By Age') primarySegmentKey = 'ageGroup'
+    if (filters.crossSegmentPrimary === 'By Type') primarySegmentKey = 'type'
+    else if (filters.crossSegmentPrimary === 'By Service Offering') primarySegmentKey = 'serviceOffering'
+    else if (filters.crossSegmentPrimary === 'By Care Option') primarySegmentKey = 'careOption'
+    else if (filters.crossSegmentPrimary === 'By Application') primarySegmentKey = 'application'
+    else if (filters.crossSegmentPrimary === 'By Age Group') primarySegmentKey = 'ageGroup'
     else if (filters.crossSegmentPrimary === 'By Gender') primarySegmentKey = 'gender'
-    else if (filters.crossSegmentPrimary === 'By ROA') primarySegmentKey = 'roa'
-    else if (filters.crossSegmentPrimary === 'By FDF') primarySegmentKey = 'fdf'
-    else if (filters.crossSegmentPrimary === 'By Procurement') primarySegmentKey = 'publicPrivate'
-    else if (filters.crossSegmentPrimary === 'By Country') primarySegmentKey = 'country'
       
       let crossSegmentKey = ''
-      if (filters.crossSegment === 'By Brand') crossSegmentKey = 'brand'
-      else if (filters.crossSegment === 'By Age') crossSegmentKey = 'ageGroup'
+      if (filters.crossSegment === 'By Type') crossSegmentKey = 'type'
+      else if (filters.crossSegment === 'By Service Offering') crossSegmentKey = 'serviceOffering'
+      else if (filters.crossSegment === 'By Care Option') crossSegmentKey = 'careOption'
+      else if (filters.crossSegment === 'By Application') crossSegmentKey = 'application'
+      else if (filters.crossSegment === 'By Age Group') crossSegmentKey = 'ageGroup'
       else if (filters.crossSegment === 'By Gender') crossSegmentKey = 'gender'
-    else if (filters.crossSegment === 'By ROA') crossSegmentKey = 'roa'
-      else if (filters.crossSegment === 'By FDF') crossSegmentKey = 'fdf'
-      else if (filters.crossSegment === 'By Procurement') crossSegmentKey = 'publicPrivate'
-      else if (filters.crossSegment === 'By Country') crossSegmentKey = 'country'
       
       if (!primarySegmentKey || !crossSegmentKey) return []
       
@@ -708,42 +767,11 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     if (filteredData.length === 0) {
       return {
         totalValue: 'N/A',
-        avgValue: 'N/A',
-        topSegment: 'N/A',
         yoyGrowth: 'N/A',
       }
     }
 
     const totalValue = filteredData.reduce((sum, d) => sum + getDataValue(d), 0)
-    const avgValue = totalValue / filteredData.length
-    
-    // Get top segment based on selected segment type
-    let topSegment = 'N/A'
-    if (filters.segment === 'By Brand') {
-      const brandGroups = filteredData.reduce((acc: Record<string, number>, d) => {
-        acc[d.brand] = (acc[d.brand] || 0) + getDataValue(d)
-        return acc
-      }, {})
-      topSegment = Object.entries(brandGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
-    } else if (filters.segment === 'By Age') {
-      const ageGroups = filteredData.reduce((acc: Record<string, number>, d) => {
-        acc[d.ageGroup] = (acc[d.ageGroup] || 0) + getDataValue(d)
-        return acc
-      }, {})
-      topSegment = Object.entries(ageGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
-    } else if (filters.segment === 'By Gender') {
-      const genderGroups = filteredData.reduce((acc: Record<string, number>, d) => {
-        acc[d.gender] = (acc[d.gender] || 0) + getDataValue(d)
-        return acc
-      }, {})
-      topSegment = Object.entries(genderGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
-    } else if (filters.segment === 'By ROA') {
-      const roaGroups = filteredData.reduce((acc: Record<string, number>, d) => {
-        acc[d.roa] = (acc[d.roa] || 0) + getDataValue(d)
-        return acc
-      }, {})
-      topSegment = Object.entries(roaGroups).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A'
-    }
 
     // Calculate YoY Growth
     const years = [...new Set(filteredData.map(d => d.year))].sort()
@@ -760,13 +788,9 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
       totalValue: filters.marketEvaluation === 'By Volume' 
         ? `${formatWithCommas(totalValue / 1000, 1)}K Units`
         : `${formatWithCommas(totalValue, 1)}M`,
-      avgValue: filters.marketEvaluation === 'By Volume'
-        ? `${formatWithCommas(avgValue, 1)} Units`
-        : `${formatWithCommas(avgValue, 1)}M`,
-      topSegment,
       yoyGrowth: `${yoyGrowth > 0 ? '+' : ''}${formatWithCommas(yoyGrowth, 1)}%`,
     }
-  }, [filteredData, filters.marketEvaluation, filters.segment])
+  }, [filteredData, filters.marketEvaluation])
 
   const updateFilter = (key: keyof MarketAnalysisFilters, value: any) => {
     let normalizedValue: any
@@ -784,40 +808,40 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     
     const newFilters = { ...filters, [key]: normalizedValue }
     
-    // Auto-select "By Brand" segment when vaccineType is selected
+    // Auto-select "By Type" segment when vaccineType is selected
     if (key === 'vaccineType' && Array.isArray(normalizedValue) && normalizedValue.length > 0) {
-      newFilters.segment = 'By Brand'
+      newFilters.segment = 'By Type'
       
-      // Get available brands for the selected vaccine types
+      // Get available types for the selected vaccine types
       const baseData = filterDataframe(data, {
         year: newFilters.year,
         disease: normalizedValue,
         country: newFilters.country,
       } as FilterOptions)
-      const availableBrands = [...new Set(baseData.map(d => d.brand))].sort()
+      const availableTypes = [...new Set(baseData.map(d => d.type))].sort()
       
-      // Ensure at least 2 brands are selected
-      if (!newFilters.brand || newFilters.brand.length < 2) {
-        if (availableBrands.length >= 2) {
-          newFilters.brand = availableBrands.slice(0, 2)
-        } else if (availableBrands.length === 1) {
-          newFilters.brand = [availableBrands[0]]
+      // Ensure at least 2 types are selected
+      if (!newFilters.type || newFilters.type.length < 2) {
+        if (availableTypes.length >= 2) {
+          newFilters.type = availableTypes.slice(0, 2)
+        } else if (availableTypes.length === 1) {
+          newFilters.type = [availableTypes[0]]
         } else {
-          newFilters.brand = []
+          newFilters.type = []
         }
       } else {
-        // Keep only brands that are still available
-        const validBrands = newFilters.brand.filter(b => availableBrands.includes(b))
-        if (validBrands.length < 2 && availableBrands.length >= 2) {
-          // If we have less than 2 valid brands, add more to reach at least 2
-          const neededBrands = availableBrands.filter(b => !validBrands.includes(b)).slice(0, 2 - validBrands.length)
-          newFilters.brand = [...validBrands, ...neededBrands].slice(0, Math.max(2, validBrands.length + neededBrands.length))
-        } else if (validBrands.length > 0) {
-          newFilters.brand = validBrands
-        } else if (availableBrands.length >= 2) {
-          newFilters.brand = availableBrands.slice(0, 2)
+        // Keep only types that are still available
+        const validTypes = newFilters.type.filter(b => availableTypes.includes(b))
+        if (validTypes.length < 2 && availableTypes.length >= 2) {
+          // If we have less than 2 valid types, add more to reach at least 2
+          const neededTypes = availableTypes.filter(b => !validTypes.includes(b)).slice(0, 2 - validTypes.length)
+          newFilters.type = [...validTypes, ...neededTypes].slice(0, Math.max(2, validTypes.length + neededTypes.length))
+        } else if (validTypes.length > 0) {
+          newFilters.type = validTypes
+        } else if (availableTypes.length >= 2) {
+          newFilters.type = availableTypes.slice(0, 2)
         } else {
-          newFilters.brand = availableBrands.slice(0, 1)
+          newFilters.type = availableTypes.slice(0, 1)
         }
       }
     }
@@ -883,50 +907,41 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
     const newFilters = { ...filters, segment: value }
     
     // Clear segment-specific filters when changing segment
-    if (value !== 'By Brand') {
-      delete newFilters.brand
+    if (value !== 'By Type') {
+      delete newFilters.type
     }
-    if (value !== 'By Age') {
-      delete newFilters.ageGroup
+    if (value !== 'By Service Offering') {
+      delete newFilters.serviceOffering
+    }
+    if (value !== 'By Care Option') {
+      delete newFilters.careOption
+    }
+    if (value !== 'By Application') {
+      delete newFilters.application
     }
     if (value !== 'By Gender') {
       delete newFilters.gender
     }
-    if (value !== 'By ROA') {
-      delete newFilters.roa
-    }
-    if (value !== 'By FDF') {
-      delete newFilters.dosageForm
-    }
-    if (value !== 'By Procurement') {
-      delete newFilters.procurementType
+    if (value !== 'By Age Group') {
+      delete newFilters.ageGroup
     }
     
     // Auto-select defaults based on segment type
-    if (value === 'By Brand' && (!newFilters.brand || newFilters.brand.length < 2)) {
-      // If switching to "By Brand", ensure at least 2 brands are selected
+    if (value === 'By Type' && (!newFilters.type || newFilters.type.length < 2)) {
+      // If switching to "By Type", ensure at least 2 types are selected
       const baseData = filterDataframe(data, {
         year: newFilters.year,
         disease: newFilters.vaccineType,
         country: newFilters.country,
       } as FilterOptions)
-      const availableBrands = [...new Set(baseData.map(d => d.brand))].sort()
-      if (availableBrands.length >= 2) {
-        newFilters.brand = availableBrands.slice(0, 2)
-      } else if (availableBrands.length === 1) {
-        newFilters.brand = [availableBrands[0]]
+      const availableTypes = [...new Set(baseData.map(d => d.type))].sort()
+      if (availableTypes.length >= 2) {
+        newFilters.type = availableTypes.slice(0, 2)
+      } else if (availableTypes.length === 1) {
+        newFilters.type = [availableTypes[0]]
       } else {
-        newFilters.brand = []
+        newFilters.type = []
       }
-    } else if (value === 'By Procurement') {
-      // Auto-select both Public and Private by default
-      const baseData = filterDataframe(data, {
-        year: newFilters.year,
-        disease: newFilters.vaccineType,
-        country: newFilters.country,
-      } as FilterOptions)
-      const availableProcurementTypes = [...new Set(baseData.map(d => d.publicPrivate))].sort()
-      newFilters.procurementType = availableProcurementTypes
     }
     
     // Reset cross-segment when main segment changes
@@ -952,6 +967,15 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
         >
           <ArrowLeft size={20} />
           Back to Home
+        </motion.button>
+        
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={downloadCSV}
+          className="flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
+        >
+          Download Data (CSV)
         </motion.button>
       </div>
 
@@ -1000,196 +1024,89 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <FilterDropdown
             label="Year"
             value={(filters.year || []).map(y => String(y))}
-            onChange={(value) => updateFilter('year', value)}
+            onChange={(value) => setFilters({ ...filters, year: (value as string[]).map(v => Number(v)) })}
             options={uniqueOptions.years.map(y => String(y))}
           />
           <FilterDropdown
-            label="Vaccine Type"
-            value={filters.vaccineType || []}
-            onChange={(value) => updateFilter('vaccineType', value)}
-            options={uniqueOptions.diseases}
+            label="By Service Offering"
+            value={filters.serviceOffering || []}
+            onChange={(value) => setFilters({ ...filters, serviceOffering: value as string[] })}
+            options={uniqueOptions.serviceOfferings}
           />
           <FilterDropdown
-            label="Country"
+            label="By Care Option"
+            value={filters.careOption || []}
+            onChange={(value) => setFilters({ ...filters, careOption: value as string[] })}
+            options={uniqueOptions.careOptions}
+          />
+          <FilterDropdown
+            label="By Application"
+            value={filters.application || []}
+            onChange={(value) => setFilters({ ...filters, application: value as string[] })}
+            options={uniqueOptions.applications}
+          />
+          <FilterDropdown
+            label="By Gender"
+            value={filters.gender || []}
+            onChange={(value) => setFilters({ ...filters, gender: value as string[] })}
+            options={uniqueOptions.genders}
+          />
+          <FilterDropdown
+            label="By Country"
             value={filters.country || []}
-            onChange={(value) => updateFilter('country', value)}
+            onChange={(value) => setFilters({ ...filters, country: value as string[] })}
             options={uniqueOptions.countries}
           />
-          
-          {/* Market Evaluation Dropdown */}
-          <div className="w-full">
-            <label className="block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark mb-2">
-              Market Evaluation
-            </label>
-            <select
-              value={filters.marketEvaluation || 'By Value'}
-              onChange={(e) => updateMarketEvaluation(e.target.value as MarketEvaluationType)}
-              className={`w-full px-4 py-2 rounded-lg border ${
-                isDark 
-                  ? 'bg-navy-card border-navy-light text-text-primary-dark hover:border-electric-blue' 
-                  : 'bg-white border-gray-300 text-text-primary-light hover:border-electric-blue'
-              } focus:outline-none focus:ring-2 focus:ring-electric-blue transition-all`}
-            >
-              <option value="By Value">By Value</option>
-              <option value="By Volume">By Volume</option>
-            </select>
-          </div>
+          <FilterDropdown
+            label="By Age Group"
+            value={filters.ageGroup || []}
+            onChange={(value) => setFilters({ ...filters, ageGroup: value as string[] })}
+            options={uniqueOptions.ageGroups}
+          />
         </div>
-
-        {/* Segment Filter - Fixed to "By Brand" */}
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark mb-2">
-            Segment
-          </label>
-          <div className={`w-full max-w-md px-4 py-2 rounded-lg border ${
-              isDark 
-              ? 'bg-navy-dark border-navy-light text-text-primary-dark' 
-              : 'bg-gray-50 border-gray-300 text-text-primary-light'
-          }`}>
-            By Brand
-        </div>
-          </div>
-
-        {/* Conditional Sub-filters - Dynamic based on selected segment */}
-        {filters.segment === 'By Brand' && (
-          <div className="mb-6 pt-4 border-t border-gray-300 dark:border-navy-light">
-            <FilterDropdown
-              label="Brand (Minimum 2 required)"
-              value={(filters.brand || []) as string[]}
-              onChange={(value) => {
-                // Enforce minimum 2 brands - mandatory requirement
-                if (!Array.isArray(value)) return
-                
-                const brandValues = value as string[]
-                const currentBrands = (filters.brand || []) as string[]
-                
-                // If trying to deselect and would go below 2, prevent it
-                if (brandValues.length < 2 && uniqueOptions.brands.length >= 2) {
-                  // Keep at least 2 brands - don't allow going below 2
-                  if (currentBrands.length >= 2) {
-                    // Try to preserve existing selections, but ensure at least 2 remain
-                    const newBrands = brandValues.filter(b => currentBrands.includes(b))
-                    if (newBrands.length >= 2) {
-                      setFilters({ ...filters, brand: newBrands })
-                    } else {
-                      // If deselecting would drop below 2, keep the first 2 current brands
-                      setFilters({ ...filters, brand: currentBrands.slice(0, 2) })
-                    }
-                  } else {
-                    // Current brands < 2, add more to reach minimum 2
-                    const availableBrands = uniqueOptions.brands.filter(b => !currentBrands.includes(b))
-                    const neededBrands = availableBrands.slice(0, Math.max(0, 2 - currentBrands.length))
-                    setFilters({ ...filters, brand: [...currentBrands, ...neededBrands].slice(0, 2) })
-                  }
-                } else if (brandValues.length >= 2) {
-                  // At least 2 selected - allow the change
-                  setFilters({ ...filters, brand: brandValues })
-                } else if (brandValues.length === 1 && uniqueOptions.brands.length === 1) {
-                  // Only allow if there's only 1 brand available total
-                  setFilters({ ...filters, brand: brandValues })
-                } else if (brandValues.length > 0 && brandValues.length < 2 && uniqueOptions.brands.length >= 2) {
-                  // Selecting but less than 2 - add more to reach minimum 2
-                  const availableBrands = uniqueOptions.brands.filter(b => !brandValues.includes(b))
-                  const neededBrands = availableBrands.slice(0, 2 - brandValues.length)
-                  setFilters({ ...filters, brand: [...brandValues, ...neededBrands].slice(0, 2) })
-                }
-              }}
-              options={uniqueOptions.brands}
-            />
-          </div>
-        )}
-
-        {filters.segment === 'By Age' && (
-          <div className="mb-6 pt-4 border-t border-gray-300 dark:border-navy-light">
-            <FilterDropdown
-              label="Age Group"
-              value={(filters.ageGroup || []) as string[]}
-              onChange={(value) => setFilters({ ...filters, ageGroup: value as string[] })}
-              options={uniqueOptions.ageGroups}
-            />
-          </div>
-        )}
-
-        {filters.segment === 'By Gender' && (
-          <div className="mb-6 pt-4 border-t border-gray-300 dark:border-navy-light">
-            <FilterDropdown
-              label="Gender"
-              value={(filters.gender || []) as string[]}
-              onChange={(value) => setFilters({ ...filters, gender: value as string[] })}
-              options={uniqueOptions.genders}
-            />
-          </div>
-        )}
-
-        {filters.segment === 'By ROA' && (
-          <div className="mb-6 pt-4 border-t border-gray-300 dark:border-navy-light">
-            <FilterDropdown
-              label="ROA"
-              value={(filters.roa || []) as string[]}
-              onChange={(value) => setFilters({ ...filters, roa: value as string[] })}
-              options={uniqueOptions.roaTypes}
-            />
-          </div>
-        )}
-
-        {filters.segment === 'By FDF' && (
-          <div className="mb-6 pt-4 border-t border-gray-300 dark:border-navy-light">
-            <FilterDropdown
-              label="Dosage Form"
-              value={(filters.dosageForm || []) as string[]}
-              onChange={(value) => setFilters({ ...filters, dosageForm: value as string[] })}
-              options={uniqueOptions.fdfTypes}
-            />
-          </div>
-        )}
-
-        {filters.segment === 'By Procurement' && (
-          <div className="mb-6 pt-4 border-t border-gray-300 dark:border-navy-light">
-            <FilterDropdown
-              label="Procurement Type"
-              value={(filters.procurementType || []) as string[]}
-              onChange={(value) => setFilters({ ...filters, procurementType: value as string[] })}
-              options={uniqueOptions.procurementTypes}
-            />
-          </div>
-        )}
 
         {/* Active Filters Display */}
-        {(filters.year && filters.year.length > 0 || filters.vaccineType && filters.vaccineType.length > 0 || filters.country && filters.country.length > 0) && (
-          <div className="mt-6 pt-6 border-t-2 border-gray-300 dark:border-navy-light">
-            <div className={`p-4 rounded-lg ${isDark ? 'bg-navy-dark' : 'bg-blue-50'}`}>
-              <p className="text-base font-semibold text-text-primary-light dark:text-text-primary-dark mb-2">
-                Currently Viewing:
-              </p>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Year:</span>
-                  <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.year}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Vaccine Type:</span>
-                  <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{Array.isArray(activeFiltersLabel.diseases) ? activeFiltersLabel.diseases.join(', ') : activeFiltersLabel.diseases}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Countries:</span>
-                  <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.countries}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Evaluation:</span>
-                  <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.marketEvaluation}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Segment:</span>
-                  <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.segment}</span>
-                </div>
+        <div className="mt-6 pt-6 border-t-2 border-gray-300 dark:border-navy-light">
+          <div className={`p-4 rounded-lg ${isDark ? 'bg-navy-dark' : 'bg-blue-50'}`}>
+            <p className="text-base font-semibold text-text-primary-light dark:text-text-primary-dark mb-2">
+              Currently Viewing:
+            </p>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Service Offering:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.serviceOffering}</span>
+              </div>
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Care Option:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.careOption}</span>
+              </div>
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Application:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.application}</span>
+              </div>
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Gender:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.gender}</span>
+              </div>
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Country:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.country}</span>
+              </div>
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Age Group:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.ageGroup}</span>
+              </div>
+              <div>
+                <span className="font-medium text-text-secondary-light dark:text-text-secondary-dark">Evaluation:</span>
+                <span className="ml-2 font-semibold text-electric-blue dark:text-cyan-accent">{activeFiltersLabel.marketEvaluation}</span>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Cross Segment Analysis Button Section - Between Filters and Key Metrics */}
@@ -1239,23 +1156,23 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
         </div>
       </div>
 
-      {/* Graph 1: Market Value by Brand (grouped by Year) */}
-      {marketValueByBrandData.length > 0 && (() => {
-        const brands = [...new Set(filteredData.map(d => d.brand))].sort()
+      {/* Graph 1: Market Value by Type (grouped by Year) */}
+      {marketValueByTypeData.length > 0 && (() => {
+        const types = [...new Set(filteredData.map(d => d.type))].sort()
         
         return (
         <div className="mb-20">
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-3">
               <div className={`w-1 h-10 rounded-full ${isDark ? 'bg-cyan-accent' : 'bg-electric-blue'}`}></div>
-                <InfoTooltip content={`• Shows ${filters.marketEvaluation === 'By Volume' ? 'market volume' : 'market value'} by brand grouped by year\n• X-axis: Brand name\n• Y-axis: ${filters.marketEvaluation === 'By Volume' ? 'Market Volume' : 'Market Value'}\n• Compare brand performance across years`}>
+                <InfoTooltip content={`• Shows ${filters.marketEvaluation === 'By Volume' ? 'market volume' : 'market value'} by care type grouped by year\n• X-axis: Year\n• Y-axis: ${filters.marketEvaluation === 'By Volume' ? 'Market Volume' : 'Market Value'}\n• Compare care type performance across years`}>
                 <h2 className="text-3xl font-bold text-text-primary-light dark:text-text-primary-dark cursor-help">
-                    {filters.marketEvaluation === 'By Volume' ? 'Market Volume' : 'Market Value'} by Brand
+                    {filters.marketEvaluation === 'By Volume' ? 'Market Volume' : 'Market Value'} by Care Type
                 </h2>
               </InfoTooltip>
             </div>
             <p className="text-base text-text-secondary-light dark:text-text-secondary-dark ml-4 mb-2">
-                Brand performance comparison by year
+                Care type performance comparison by year
             </p>
           </div>
           <div className={`p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 h-[550px] flex flex-col ${isDark ? 'bg-navy-card border-2 border-navy-light' : 'bg-white border-2 border-gray-200'}`}>
@@ -1269,14 +1186,14 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
             </div>
             <div className="flex-1 flex items-center justify-center min-h-0 pt-2">
                 <SegmentGroupedBarChart
-                  data={marketValueByBrandData.map((entry) => ({
+                  data={marketValueByTypeData.map((entry) => ({
                     year: entry.year,
-                    ...brands.reduce((acc, brand) => {
-                      acc[brand] = entry[brand] as number || 0
+                    ...types.reduce((acc, type) => {
+                      acc[type] = entry[type] as number || 0
                       return acc
                     }, {} as Record<string, number>)
                   }))}
-                  segmentKeys={brands}
+                  segmentKeys={types}
                   xAxisLabel="Year"
                   yAxisLabel={getDataLabel()}
                 />
@@ -1425,79 +1342,48 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
                   }
                   
                   // Clear segment-specific filters when changing primary segment
-                  delete newFilters.crossSegmentPrimaryBrand
+                  delete newFilters.crossSegmentPrimaryType
+                  delete newFilters.crossSegmentPrimaryServiceOffering
+                  delete newFilters.crossSegmentPrimaryCareOption
+                  delete newFilters.crossSegmentPrimaryApplication
                   delete newFilters.crossSegmentPrimaryAgeGroup
                   delete newFilters.crossSegmentPrimaryGender
-                  delete newFilters.crossSegmentPrimaryRoa
-                  delete newFilters.crossSegmentPrimaryDosageForm
-                  delete newFilters.crossSegmentPrimaryProcurementType
-                  delete newFilters.crossSegmentPrimaryCountry
                   
                   // Auto-populate defaults if needed
-                  if (newPrimary === 'By Brand') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableBrands = [...new Set(baseData.map(d => d.brand))].sort()
-                    if (availableBrands.length >= 2) {
-                      newFilters.crossSegmentPrimaryBrand = availableBrands.slice(0, 2)
-                    } else if (availableBrands.length === 1) {
-                      newFilters.crossSegmentPrimaryBrand = [availableBrands[0]]
+                  if (newPrimary === 'By Type') {
+                    const availableTypes = [...new Set(filteredData.map(d => d.type))].sort()
+                    if (availableTypes.length >= 2) {
+                      newFilters.crossSegmentPrimaryType = availableTypes.slice(0, 2)
+                    } else if (availableTypes.length === 1) {
+                      newFilters.crossSegmentPrimaryType = [availableTypes[0]]
                     }
-                  } else if (newPrimary === 'By Age') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableAgeGroups = [...new Set(baseData.map(d => d.ageGroup))].sort()
+                  } else if (newPrimary === 'By Service Offering') {
+                    const availableServiceOfferings = [...new Set(filteredData.map(d => d.serviceOffering))].sort()
+                    if (availableServiceOfferings.length >= 2) {
+                      newFilters.crossSegmentPrimaryServiceOffering = availableServiceOfferings.slice(0, 2)
+                    } else if (availableServiceOfferings.length === 1) {
+                      newFilters.crossSegmentPrimaryServiceOffering = [availableServiceOfferings[0]]
+                    }
+                  } else if (newPrimary === 'By Care Option') {
+                    const availableCareOptions = [...new Set(filteredData.map(d => d.careOption))].sort()
+                    if (availableCareOptions.length >= 2) {
+                      newFilters.crossSegmentPrimaryCareOption = availableCareOptions.slice(0, 2)
+                    } else if (availableCareOptions.length === 1) {
+                      newFilters.crossSegmentPrimaryCareOption = [availableCareOptions[0]]
+                    }
+                  } else if (newPrimary === 'By Application') {
+                    const availableApplications = [...new Set(filteredData.map(d => d.application))].sort()
+                    if (availableApplications.length >= 2) {
+                      newFilters.crossSegmentPrimaryApplication = availableApplications.slice(0, 2)
+                    } else if (availableApplications.length === 1) {
+                      newFilters.crossSegmentPrimaryApplication = [availableApplications[0]]
+                    }
+                  } else if (newPrimary === 'By Age Group') {
+                    const availableAgeGroups = [...new Set(filteredData.map(d => d.ageGroup))].sort()
                     newFilters.crossSegmentPrimaryAgeGroup = availableAgeGroups
                   } else if (newPrimary === 'By Gender') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableGenders = [...new Set(baseData.map(d => d.gender))].sort()
+                    const availableGenders = [...new Set(filteredData.map(d => d.gender))].sort()
                     newFilters.crossSegmentPrimaryGender = availableGenders
-                  } else if (newPrimary === 'By ROA') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableRoa = [...new Set(baseData.map(d => d.roa))].sort()
-                    newFilters.crossSegmentPrimaryRoa = availableRoa
-                  } else if (newPrimary === 'By FDF') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableFdf = [...new Set(baseData.map(d => d.fdf))].sort()
-                    newFilters.crossSegmentPrimaryDosageForm = availableFdf
-                  } else if (newPrimary === 'By Procurement') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableProcurementTypes = [...new Set(baseData.map(d => d.publicPrivate))].sort()
-                    newFilters.crossSegmentPrimaryProcurementType = availableProcurementTypes
-                  } else if (newPrimary === 'By Country') {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    const availableCountries = [...new Set(baseData.map(d => d.country))].sort()
-                    if (availableCountries.length >= 2) {
-                      newFilters.crossSegmentPrimaryCountry = availableCountries.slice(0, 2)
-                    } else if (availableCountries.length === 1) {
-                      newFilters.crossSegmentPrimaryCountry = [availableCountries[0]]
-                    }
                   }
                   
                   setFilters(newFilters)
@@ -1509,17 +1395,11 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
                 } focus:outline-none focus:ring-2 focus:ring-electric-blue transition-all`}
               >
                 <option value="">Select Segment</option>
-                <option value="By Brand">By Brand</option>
-                {filters.marketEvaluation === 'By Value' && (
-                  <>
-                    <option value="By Age">By Age</option>
-                    <option value="By Gender">By Gender</option>
-                  </>
-                )}
-                <option value="By ROA">By ROA (Route of Administration)</option>
-                <option value="By FDF">By FDF (Fixed Dose Formulation)</option>
-                <option value="By Procurement">By Procurement</option>
-                <option value="By Country">By Country</option>
+                {availablePrimarySegments.map((segment) => (
+                  <option key={segment || ''} value={segment || ''}>
+                    {segment}
+                  </option>
+                ))}
               </select>
           </div>
 
@@ -1535,51 +1415,49 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
                   const newFilters: MarketAnalysisFilters = { ...filters, crossSegment: newCrossSegment }
                   
                   // Clear cross-segment specific filters when changing cross-segment
-                  delete newFilters.crossSegmentBrand
+                  delete newFilters.crossSegmentType
+                  delete newFilters.crossSegmentServiceOffering
+                  delete newFilters.crossSegmentCareOption
+                  delete newFilters.crossSegmentApplication
                   delete newFilters.crossSegmentAgeGroup
                   delete newFilters.crossSegmentGender
-                  delete newFilters.crossSegmentRoa
-                  delete newFilters.crossSegmentDosageForm
-                  delete newFilters.crossSegmentProcurementType
-                  delete newFilters.crossSegmentCountry
                   
                   // Auto-select all available options for the new cross-segment
                   if (newCrossSegment) {
-                    const baseData = filterDataframe(data, {
-                      year: filters.year && filters.year.length > 0 ? filters.year : undefined,
-                      disease: filters.vaccineType && filters.vaccineType.length > 0 ? filters.vaccineType : undefined,
-                      country: filters.country && filters.country.length > 0 ? filters.country : undefined,
-                    } as FilterOptions)
-                    
-                    if (newCrossSegment === 'By Brand') {
-                      const availableBrands = [...new Set(baseData.map(d => d.brand))].sort()
-                      if (availableBrands.length >= 2) {
-                        newFilters.crossSegmentBrand = availableBrands.slice(0, 2)
-                      } else if (availableBrands.length === 1) {
-                        newFilters.crossSegmentBrand = [availableBrands[0]]
+                    if (newCrossSegment === 'By Type') {
+                      const availableTypes = [...new Set(filteredData.map(d => d.type))].sort()
+                      if (availableTypes.length >= 2) {
+                        newFilters.crossSegmentType = availableTypes.slice(0, 2)
+                      } else if (availableTypes.length === 1) {
+                        newFilters.crossSegmentType = [availableTypes[0]]
                       }
-                    } else if (newCrossSegment === 'By Age') {
-                      const availableAgeGroups = [...new Set(baseData.map(d => d.ageGroup))].sort()
+                    } else if (newCrossSegment === 'By Service Offering') {
+                      const availableServiceOfferings = [...new Set(filteredData.map(d => d.serviceOffering))].sort()
+                      if (availableServiceOfferings.length >= 2) {
+                        newFilters.crossSegmentServiceOffering = availableServiceOfferings.slice(0, 2)
+                      } else if (availableServiceOfferings.length === 1) {
+                        newFilters.crossSegmentServiceOffering = [availableServiceOfferings[0]]
+                      }
+                    } else if (newCrossSegment === 'By Care Option') {
+                      const availableCareOptions = [...new Set(filteredData.map(d => d.careOption))].sort()
+                      if (availableCareOptions.length >= 2) {
+                        newFilters.crossSegmentCareOption = availableCareOptions.slice(0, 2)
+                      } else if (availableCareOptions.length === 1) {
+                        newFilters.crossSegmentCareOption = [availableCareOptions[0]]
+                      }
+                    } else if (newCrossSegment === 'By Application') {
+                      const availableApplications = [...new Set(filteredData.map(d => d.application))].sort()
+                      if (availableApplications.length >= 2) {
+                        newFilters.crossSegmentApplication = availableApplications.slice(0, 2)
+                      } else if (availableApplications.length === 1) {
+                        newFilters.crossSegmentApplication = [availableApplications[0]]
+                      }
+                    } else if (newCrossSegment === 'By Age Group') {
+                      const availableAgeGroups = [...new Set(filteredData.map(d => d.ageGroup))].sort()
                       newFilters.crossSegmentAgeGroup = availableAgeGroups
                     } else if (newCrossSegment === 'By Gender') {
-                      const availableGenders = [...new Set(baseData.map(d => d.gender))].sort()
+                      const availableGenders = [...new Set(filteredData.map(d => d.gender))].sort()
                       newFilters.crossSegmentGender = availableGenders
-                    } else if (newCrossSegment === 'By ROA') {
-                      const availableRoa = [...new Set(baseData.map(d => d.roa))].sort()
-                      newFilters.crossSegmentRoa = availableRoa
-                    } else if (newCrossSegment === 'By FDF') {
-                      const availableFdf = [...new Set(baseData.map(d => d.fdf))].sort()
-                      newFilters.crossSegmentDosageForm = availableFdf
-                    } else if (newCrossSegment === 'By Procurement') {
-                      const availableProcurementTypes = [...new Set(baseData.map(d => d.publicPrivate))].sort()
-                      newFilters.crossSegmentProcurementType = availableProcurementTypes
-                    } else if (newCrossSegment === 'By Country') {
-                      const availableCountries = [...new Set(baseData.map(d => d.country))].sort()
-                      if (availableCountries.length >= 2) {
-                        newFilters.crossSegmentCountry = availableCountries.slice(0, 2)
-                      } else if (availableCountries.length === 1) {
-                        newFilters.crossSegmentCountry = [availableCountries[0]]
-                      }
                     }
                   }
                   
@@ -1593,16 +1471,11 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
                 } focus:outline-none focus:ring-2 focus:ring-electric-blue transition-all ${!filters.crossSegmentPrimary ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Cross Segment</option>
-                {availableCrossSegmentsForStandalone.map((segment) => {
-                  let displayText: string = segment || ''
-                  if (segment === 'By ROA') displayText = 'By ROA (Route of Administration)'
-                  else if (segment === 'By FDF') displayText = 'By FDF (Fixed Dose Formulation)'
-                  return (
-                    <option key={segment || ''} value={segment || ''}>
-                      {displayText}
-                    </option>
-                  )
-                })}
+                {availableCrossSegmentsForStandalone.map((segment) => (
+                  <option key={segment || ''} value={segment || ''}>
+                    {segment}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -1863,35 +1736,41 @@ export function MarketAnalysis({ onNavigate }: MarketAnalysisProps) {
           )}
                   </div>
 
-        {/* Cross Segment Charts - Simplified and Explanatory */}
-        {filters.crossSegmentPrimary && filters.crossSegment && standaloneCrossSegmentGroupedData.length > 0 && standaloneCrossSegmentGroupedKeys.length > 0 && (
-          <div className="mb-20">
+        {/* Cross Segment Analysis Chart */}
+        {filters.crossSegmentPrimary && filters.crossSegment && crossSegmentAnalysisData.length > 0 && crossSegmentDataKeys.length > 0 && (
+          <div className="mb-20" id="cross-segment-analysis">
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-1 h-10 rounded-full ${isDark ? 'bg-cyan-accent' : 'bg-electric-blue'}`}></div>
+                <h2 className="text-3xl font-bold text-text-primary-light dark:text-text-primary-dark">
+                  Cross Segment Analysis: {filters.crossSegmentPrimary} × {filters.crossSegment}
+                </h2>
+              </div>
+              <p className="text-base text-text-secondary-light dark:text-text-secondary-dark ml-4 mb-2">
+                Analyzing {filters.crossSegmentPrimary.replace('By ', '')} breakdown by {filters.crossSegment.replace('By ', '')}
+              </p>
+            </div>
             <div className={`p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 h-[550px] flex flex-col ${isDark ? 'bg-navy-card border-2 border-navy-light' : 'bg-white border-2 border-gray-200'}`}>
               <div className="mb-4 pb-4 border-b border-gray-200 dark:border-navy-light">
-                      <h3 className="text-lg font-bold text-electric-blue dark:text-cyan-accent mb-1">
-                  {filters.crossSegmentPrimary.replace('By ', '')} × {filters.crossSegment.replace('By ', '')} Analysis
-                      </h3>
-                      <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">
-                  {getDataLabel()} • Each bar shows individual combinations grouped by year
-                      </p>
-                    </div>
+                <h3 className="text-lg font-bold text-electric-blue dark:text-cyan-accent mb-1">
+                  {filters.marketEvaluation === 'By Volume' ? 'Market Volume' : 'Market Value'} by {filters.crossSegmentPrimary.replace('By ', '')} and {filters.crossSegment.replace('By ', '')}
+                </h3>
+                <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark">
+                  {getDataLabel()} • Stacked bars show {filters.crossSegment.replace('By ', '')} breakdown for each {filters.crossSegmentPrimary.replace('By ', '')}
+                </p>
+              </div>
               <div className="flex-1 flex items-center justify-center min-h-0">
-                <SegmentGroupedBarChart
-                  data={standaloneCrossSegmentGroupedData.map((entry) => ({
-                    year: entry.year,
-                    ...standaloneCrossSegmentGroupedKeys.reduce((acc, key) => {
-                      acc[key] = entry[key] as number || 0
-                      return acc
-                    }, {} as Record<string, number>)
-                  }))}
-                  segmentKeys={standaloneCrossSegmentGroupedKeys}
-                  xAxisLabel="Year"
+                <CrossSegmentStackedBarChart
+                  data={crossSegmentAnalysisData}
+                  dataKeys={crossSegmentDataKeys}
+                  xAxisLabel={filters.crossSegmentPrimary.replace('By ', '')}
                   yAxisLabel={getDataLabel()}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
+                  nameKey="name"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
             </>
       )}

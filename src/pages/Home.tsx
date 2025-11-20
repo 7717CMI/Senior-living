@@ -56,14 +56,6 @@ export function Home({ onNavigate }: HomeProps) {
 
   const categories: Category[] = [
     {
-      title: "By Vaccine",
-      description: "Analyze vaccine-specific data, disease epidemiology, and vaccination rates",
-      icon: FlaskConical,
-      modules: vaccineModules,
-      gradient: "#0075FF",
-      bgGradient: "rgba(0, 117, 255, 0.05)",
-    },
-    {
       title: "By Market Analysis",
       description: "Explore market trends, pricing, growth rates, and competitive analysis",
       icon: TrendingUp,
@@ -128,7 +120,7 @@ export function Home({ onNavigate }: HomeProps) {
         className="mb-10 text-center"
       >
         <h1 className="text-3xl md:text-4xl font-bold text-text-primary-light dark:text-text-primary-dark mb-2">
-          Global Vaccine Market Analytics Dashboard
+          Europe Senior Living Market Value Dashboard
         </h1>
         <p className="text-lg text-electric-blue dark:text-cyan-accent">
           Comprehensive market intelligence and forecasting analysis | 2021-2035
@@ -152,11 +144,12 @@ export function Home({ onNavigate }: HomeProps) {
                 Select Analysis Category
               </h2>
               <p className="text-center text-text-secondary-light dark:text-text-secondary-dark mb-8">
-                Choose your analysis approach to explore vaccine market data
+                Choose your analysis approach to explore senior living market data
               </p>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="flex justify-center mb-8">
+              <div className="w-full max-w-2xl">
               {categories.map((category) => {
                 const CategoryIcon = category.icon
                 
@@ -201,6 +194,7 @@ export function Home({ onNavigate }: HomeProps) {
                   </motion.button>
                 )
               })}
+              </div>
             </div>
           </motion.div>
         ) : (

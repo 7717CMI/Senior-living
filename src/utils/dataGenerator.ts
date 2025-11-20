@@ -6,7 +6,10 @@ interface VaccineData {
   incomeType: string
   disease: string
   market: string
-  brand: string
+  type: string
+  serviceOffering: string
+  careOption: string
+  application: string
   company: string
   ageGroup: string
   gender: string
@@ -35,6 +38,8 @@ interface VaccineData {
   yoyGrowth: number
   yoy: number
   efficacyPct: number
+  // Legacy field for backward compatibility
+  brand: string
 }
 
 const generateComprehensiveData = (): VaccineData[] => {
@@ -55,56 +60,14 @@ const generateComprehensiveData = (): VaccineData[] => {
                      "Serum Institute"]
   
   const countryIncomeMap: Record<string, Record<string, string>> = {
-    "APAC": {
-      "Nepal": "Low Income",
-      "Philippines": "Middle Income",
-      "Myanmar": "Low Income",
-      "Sri Lanka": "Middle Income",
-      "India": "Middle Income",
-      "Vietnam": "Middle Income",
-      "Pakistan": "Low Income",
-      "Bangladesh": "Low Income",
-      "Cambodia": "Low Income",
-      "Bhutan": "Middle Income",
-      "China": "Middle Income",
-      "Malaysia": "Middle Income",
-      "Indonesia": "Middle Income",
-      "Yemen": "Low Income",
-      "Kazakhstan": "Middle Income",
-      "Thailand": "Middle Income"
-    },
-    "Middle East": {
-      "Egypt": "Middle Income",
-      "Afghanistan": "Low Income",
-      "Iran": "Middle Income",
-      "Morocco": "Middle Income",
-      "Kuwait": "High Income",
-      "Tunisia": "Middle Income",
-      "Jordan": "Middle Income",
-      "Qatar": "High Income",
-      "Iraq": "Middle Income",
-      "Libya": "Middle Income",
-      "Saudi Arabia": "High Income",
-      "Bahrain": "High Income",
-      "UAE": "High Income",
-      "Oman": "High Income"
-    },
-    "Latin America": {
-      "Brazil": "Middle Income",
-      "Colombia": "Middle Income",
-      "Chile": "Middle Income",
-      "Mexico": "Middle Income",
-      "Argentina": "Middle Income",
-      "Peru": "Middle Income"
-    },
-    "Africa": {
-      "Uganda": "Low Income",
-      "Kenya": "Low Income",
-      "Mauritius": "Middle Income",
-      "Nigeria": "Low Income",
-      "Ethiopia": "Low Income",
-      "Tanzania": "Low Income",
-      "South Africa": "Middle Income"
+    "Europe": {
+      "U.K.": "High Income",
+      "Germany": "High Income",
+      "France": "High Income",
+      "Italy": "High Income",
+      "Spain": "High Income",
+      "Russia": "Middle Income",
+      "Rest of Europe": "High Income"
     }
   }
   
@@ -118,17 +81,16 @@ const generateComprehensiveData = (): VaccineData[] => {
     })
   })
   
-  // Vaccine to countries mapping - each vaccine only appears in specific countries
-  // Hexavalent is available in ALL countries
+  // Vaccine to countries mapping - each vaccine is available in all European countries
   const vaccineCountryMap: Record<string, string[]> = {
-    "HPV": ["Nepal", "Philippines"],
-    "Shingles": ["Nepal", "Philippines"],
-    "IPV": ["Myanmar"],
-    "BCG": ["Sri Lanka"],
-    "Hexavalent": allCountries.sort() // Hexavalent available in all countries
+    "HPV": allCountries.sort(),
+    "Shingles": allCountries.sort(),
+    "IPV": allCountries.sort(),
+    "BCG": allCountries.sort(),
+    "Hexavalent": allCountries.sort()
   }
 
-  const ageGroups = ["Pediatric / Children / Adolescence", "Adult", "Geriatric"]
+  const ageGroups = ["Youngest old (65-74 years)", "Middle old (75-84 years)", "Oldest old (85 years and older)"]
   const roaTypes = ["IM", "SC", "Oral", "Intranasal"]
   const fdfTypes = ["Vial", "Prefilled Syringe", "Multi-dose Vial", "Oral Solution"]
   const procurementTypes = ["UNICEF", "GAVI", "PAHO", "Hospital", "Private Clinic", "Government"]
@@ -144,12 +106,7 @@ const generateComprehensiveData = (): VaccineData[] => {
 
   // Region-specific multipliers
   const regionMultipliers: Record<string, { volume: number; vaccinationRate: number; marketShare: number }> = {
-    'North America': { volume: 1.5, vaccinationRate: 1.2, marketShare: 1.4 },
-    'Europe': { volume: 1.3, vaccinationRate: 1.1, marketShare: 1.3 },
-    'APAC': { volume: 1.8, vaccinationRate: 0.9, marketShare: 1.5 },
-    'Latin America': { volume: 1.1, vaccinationRate: 0.8, marketShare: 0.9 },
-    'Middle East': { volume: 0.9, vaccinationRate: 0.9, marketShare: 1.1 },
-    'Africa': { volume: 1.2, vaccinationRate: 0.7, marketShare: 0.8 }
+    'Europe': { volume: 1.3, vaccinationRate: 1.1, marketShare: 1.3 }
   }
 
   // Brand-specific multipliers (some brands are premium, some are budget)
@@ -235,6 +192,19 @@ const generateComprehensiveData = (): VaccineData[] => {
               const procurement = procurementTypes[Math.floor(seededRandom() * procurementTypes.length)]
               const company = companies[Math.floor(seededRandom() * companies.length)]
               
+              // New fields based on excel sheet
+              const types = ["Independent Living", "Assisted Living", "Nursing Homes", "Continuing Care Retirement", "Active Adult Communities", "Memory Care Communities", "Others (Palliative Care, Concierge and Support Services, etc.)"]
+              const type = types[Math.floor(seededRandom() * types.length)]
+              
+              const serviceOfferings = ["Personal Care Services", "Health Monitoring Services", "Medication Management Services", "Social Activities and Engagement", "Household and Daily Life Support Services", "Transportation Services", "Others (Concierge and Support Services, etc.)"]
+              const serviceOffering = serviceOfferings[Math.floor(seededRandom() * serviceOfferings.length)]
+              
+              const careOptions = ["Long Term Care", "Short Term Care"]
+              const careOption = careOptions[Math.floor(seededRandom() * careOptions.length)]
+              
+              const applications = ["Dementia Care", "Chronic & advanced heart disease", "Alzheimer Care", "Stroke", "Parkinson Disease care", "Cancer Care", "Post-Operative Care", "Mental Health Wellbeing", "Other (Palliative Care, etc.)"]
+              const application = applications[Math.floor(seededRandom() * applications.length)]
+              
               data.push({
                 recordId,
                 year,
@@ -244,11 +214,15 @@ const generateComprehensiveData = (): VaccineData[] => {
                 disease,
                 market: disease,
                 brand,
+                type,
+                serviceOffering,
+                careOption,
+                application,
                 company,
                 ageGroup,
                 gender,
-                segment: ["Gender", "Brand", "Age", "ROA", "FDF"][Math.floor(seededRandom() * 5)],
-                segmentBy: ["male", "female", brand, ageGroup][Math.floor(seededRandom() * 4)],
+                segment: ["Gender", "Type", "Age Group", "Service Offering", "Care Option"][Math.floor(seededRandom() * 5)],
+                segmentBy: ["male", "female", type, ageGroup][Math.floor(seededRandom() * 4)],
                 roa,
                 fdf,
                 formulation: fdf,
@@ -367,3 +341,49 @@ export const addCommas = (num: number | null | undefined): string | number | nul
 
 export type { VaccineData }
 
+
+// Function to export data as CSV
+export const exportDataAsCSV = (): string => {
+  const data = getData()
+  
+  if (data.length === 0) {
+    return ''
+  }
+  
+  // Get headers from the first data object
+  const headers = Object.keys(data[0])
+  
+  // Create CSV header row
+  const csvHeader = headers.join(',')
+  
+  // Create CSV data rows
+  const csvRows = data.map(row => {
+    return headers.map(header => {
+      const value = row[header as keyof VaccineData]
+      // Escape values that contain commas or quotes
+      if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value
+    }).join(',')
+  })
+  
+  // Combine header and rows
+  return [csvHeader, ...csvRows].join('\n')
+}
+
+// Function to download CSV file
+export const downloadCSV = () => {
+  const csv = exportDataAsCSV()
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  
+  link.setAttribute('href', url)
+  link.setAttribute('download', 'elderly_care_market_data.csv')
+  link.style.visibility = 'hidden'
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}

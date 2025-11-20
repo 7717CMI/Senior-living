@@ -6,8 +6,6 @@ import { Header } from './components/Header'
 import { MobileMenu } from './components/MobileMenu'
 import { LoadingScreen } from './components/LoadingScreen'
 import { Home } from './pages/Home'
-import { Epidemiology } from './pages/Epidemiology'
-import { VaccinationRate } from './pages/VaccinationRate'
 import { MarketAnalysis } from './pages/MarketAnalysis'
 import { Contact } from './pages/Contact'
 
@@ -43,10 +41,6 @@ function App() {
     switch (activePage) {
       case 'Home':
         return <Home onNavigate={setActivePage} />
-      case 'Epidemiology':
-        return <Epidemiology onNavigate={setActivePage} />
-      case 'VaccinationRate':
-        return <VaccinationRate onNavigate={setActivePage} />
       case 'MarketAnalysis':
         return <MarketAnalysis onNavigate={setActivePage} />
       case 'Contact':
@@ -59,8 +53,6 @@ function App() {
   const getPageTitle = () => {
     const titles: Record<string, string> = {
       'Home': 'Home',
-      'Epidemiology': 'Epidemiology Analysis',
-      'VaccinationRate': 'Vaccination Rate Analysis',
       'MarketAnalysis': 'Market Analysis',
       'Contact': 'Contact Us'
     }
